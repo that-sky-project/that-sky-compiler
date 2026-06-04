@@ -4,19 +4,20 @@ const { EnvEntry } = require("../../env.js");
 const { AstNode } = require("../astNode.js");
 const { Statement } = require("./statement.js");
 const { Constant } = require("../expression/constant.js");
+const { TypeDeclaration } = require("../typedecl.js");
 
 /** Represents a member variable of a class. */
 class ClassMemberDecl extends AstNode {
   constructor() {
     super();
 
-    this.typeName = void 0;
+    this.typedef = void 0;
     this.id = void 0;
     this.defaultVal = void 0;
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
    * @returns {boolean}
@@ -38,30 +39,27 @@ class ClassMemberDecl extends AstNode {
 
   /**
    * Parse a class member declaration.
-   * 
+   *
    * <ClassMember>:
-   *   <Identifier> <Identifier> ;
-   *   <Identifier> <Identifier> = <Literal> ;
-   * 
+   *   <TypeDeclaration> ;
+   *   <TypeDeclaration> = <Literal> ;
+   *
    * Entry: look -> <Identifier> for type name.
    * Exit: look -> After ";"
-   * 
-   * @param {Parser} P - Parser.
+   *
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
    */
   syntax(P, E, clazz) {
-    var typeName = P.look
-      , typedef = E.get(typeName);
+    var typeDecl = TypeDeclaration.parse(P, E)(P.look);
 
-    // Member name.
-    P.move();
-    P.match(kTokenType.Identifier);
-    this.id = P.look;
+    if (!typeDecl || !typeDecl.name)
+      this.error(kBulitInExceptions.InvalidType, P.look);
+
+    this.typedef = typeDecl.typedef;
+    this.id = typeDecl.name;
     this.relocate(this.id);
-
-    // Skip member name.
-    P.move();
 
     if (P.test(kTokenReserved.Assign)) {
       // Default value.
@@ -72,11 +70,6 @@ class ClassMemberDecl extends AstNode {
     // ";"
     P.match(kTokenReserved.Semicolon);
     P.move();
-
-    if (!typedef || !typedef.isType())
-      this.error(kBulitInExceptions.InvalidType, typeName);
-
-    this.typeName = typeName;
   }
 
   /**
@@ -98,7 +91,7 @@ class ClassBlock extends AstNode {
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
    * @returns {boolean}
@@ -129,7 +122,7 @@ class ClassBlock extends AstNode {
    * Entry: look -> at "{"
    * Exit: look -> after "}"
    *
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
    */
@@ -159,17 +152,23 @@ class ClassStatement extends Statement {
   constructor(token) {
     super(token);
 
-    // Ast subnodes.
+    // - Ast subnodes.
+
+    /** @type {Token} */
     this.name = void 0;
+    /** @type {Map<string,ClassMemberDecl>} */
     this.members = new Map();
 
-    // Env params.
+    // - Env params.
+
+    /** @type {EnvEntry} */
     this.parent = void 0;
+    /** @type {EnvEntry} */
     this.entry = void 0;
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
    * @returns {boolean}
@@ -197,7 +196,7 @@ class ClassStatement extends Statement {
    * Entry: at "class"
    * Exit: after <ClassBlock>
    * 
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    */
   syntax(P, E) {
@@ -258,6 +257,10 @@ class ClassStatement extends Statement {
       throw kBulitInExceptions.DuplicatedMember.from(member.id);
 
     this.members.set(name, member);
+  }
+
+  toString() {
+    return "class " + this.name.raw();
   }
 }
 

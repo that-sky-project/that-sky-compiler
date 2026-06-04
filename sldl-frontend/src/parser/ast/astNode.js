@@ -1,3 +1,5 @@
+const { kBulitInExceptions } = require("sldl-utils");
+
 /**
  * Node of abstract syntax tree.
  * 
@@ -8,7 +10,29 @@
  */
 class AstNode {
   /**
-   * @param {Parser} P 
+   * Check if P.look is the starting token of the current node.
+   * @param {CompilerParser} P 
+   * @param {Env} E 
+   * @returns {boolean}
+   */
+  static maybe(P, E) {
+    return true;
+  }
+
+  /**
+   * Check if P.look is the starting token of the current node. This function is
+   * used to throw an "unexpected ..." error before the caller enters parsing.
+   * @param {CompilerParser} P 
+   * @param {v} E 
+   * @throws {CompileException}
+   */
+  static match(P, E) {
+    if (!this.maybe(P, E))
+      throw kBulitInExceptions.Unexpected.from(P.look);
+  }
+
+  /**
+   * @param {CompilerParser} P 
    * @param {Env} E 
    * @param  {...any} args 
    * @returns {(T:Token,...V:any[])=>AstNode|undefined}
@@ -54,7 +78,7 @@ class AstNode {
 
   /**
    * Parse the node from the Parser, with panic mode.
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {...any} args - Other arguments.
    * @returns {boolean}
@@ -71,7 +95,7 @@ class AstNode {
 
   /**
    * Parse the node from the Parser.
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    */
   syntax(P, E) {
@@ -90,9 +114,7 @@ class AstNode {
    * @returns {string}
    */
   toString() {
-    if (!this.ctx)
-      return "";
-    return this.ctx.content.toString();
+    return this.ctx ? this.ctx.raw() : "";
   }
 }
 

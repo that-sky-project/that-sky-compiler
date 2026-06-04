@@ -11,10 +11,11 @@ const { Token, TokenContent, kInternalTypes } = require("../lexer/token.js");
 const kEnvEntryType = Object.freeze({
   Variable: 0,
   Constant: 1,
-  Primitive: 2,
-  Typedef: 3,
+  Extern: 2,
+  Primitive: 3,
+  Typedef: 4,
   Struct: 5,
-  Class: 4,
+  Class: 6,
 });
 
 /** Represents a register in symbol table. */
@@ -36,6 +37,20 @@ class EnvEntry {
   }
 
   /**
+   * Create an EnvEntry.
+   * @param {Token} token - The token of the variable identifier.
+   * @param {AstNode} node - The declaration of the variable, usually VariableStatement.
+   * @returns {EnvEntry}
+   */
+  static createVariable(token, node) {
+    return new EnvEntry(
+      kEnvEntryType.Variable,
+      token.content,
+      node
+    );
+  }
+
+  /**
    * @param {number} type - Type.
    * @param {Word} id - Name.
    * @param {StructStatement|ClassStatement|Reference} [node] - Content.
@@ -43,24 +58,39 @@ class EnvEntry {
   constructor(type, id, node) {
     this.type = type || kEnvEntryType.Variable;
     this.name = id;
+
     /**
      * The AstNode of the definition. Undefined if the entry a pre-defined.
      * @type {AstNode|undefined}
      */
     this.node = node || void 0;
+
     /**
-     * If this.type == kEnvEntryType.Typedef, the parent field represents the
-     * original type of the alias; otherwise, it represents the parent class
+     * When this.type == kEnvEntryType.Typedef: the parent field represents the
+     * original type of the alias.
+     * 
+     * When this.type == kEnvEntryType.Class, it represents the parent class
      * inherited from.
+     * 
+     * When this.type == kEnvEntryType.Variable or kEnvEntryType.Extern, it
+     * represents the type of the variable.
+     * 
      * @type {EnvEntry|undefined}
      */
     this.parent = void 0;
+
     /**
      * Member variable defs of the class or struct. Only valid when this.type
      * == kEnvEntryType.Class || this.type == kEnvEntryType.Struct.
      * @type {Map<string,AstNode>}
      */
     this.members = new Map();
+
+    /**
+     * The initial value of a constant or variable.
+     * @type {AstNode}
+     */
+    this.value = void 0;
   }
 
   /**
@@ -71,10 +101,32 @@ class EnvEntry {
   }
 
   /**
+   * Type declaration of the variable or constant.
+   * @returns {EnvEntry}
+   */
+  get vartype() {
+    return this.parent;
+  }
+
+  /**
+   * The initial value of a constant.
+   */
+  get initial() {
+    return this.value;
+  }
+
+  /**
    * @param {EnvEntry} parent 
    */
   setParent(parent) {
     this.parent = parent;
+  }
+
+  /**
+   * @param {AstNode} value 
+   */
+  setValue(value) {
+    this.value = value;
   }
 
   /**
@@ -107,6 +159,14 @@ class EnvEntry {
   }
 
   /**
+   * True if the entry represents a constant with initial value.
+   * @returns {boolean}
+   */
+  isConst() {
+    return this.type == kEnvEntryType.Constant;
+  }
+
+  /**
    * Can be used in "extend" in class declarations.
    * @returns {boolean}
    */
@@ -135,19 +195,16 @@ class Env {
   /**
    * Put a token and the related definition into the symbol table.
    * @param {EnvEntry} entry 
-   * @param {Token|TokenContent|string} [parent] 
+   * @param {Token|TokenContent|string} [related] 
    * @returns {boolean}
    */
-  put(entry, parent) {
+  put(entry, related) {
     if (this.symbols.has(entry.name.toString()))
       return false;
 
-    if (parent) {
-      var def = this.get(parent);
+    if (related) {
+      var def = this.get(related);
       if (!def)
-        return false;
-
-      if (entry.type != kEnvEntryType.Class && entry.type != kEnvEntryType.Typedef)
         return false;
 
       entry.setParent(def);
@@ -173,14 +230,26 @@ class Env {
   /**
    * Declare an alias from the entry specified by "token".
    * @param {EnvEntry} entry 
-   * @param {Token|TokenContent|string} [parent] 
+   * @param {Token|TokenContent|string} [target] 
    * @returns {boolean}
    */
-  alias(entry, parent) {
+  alias(entry, target) {
     if (entry.type != kEnvEntryType.Typedef)
       return false;
 
-    return this.put(entry, parent);
+    return this.put(entry, target);
+  }
+
+  /**
+   * Declare a variable or constant.
+   * @param {EnvEntry} entry 
+   * @param {Token|TokenContent|string} typedef - Type of the variable or constant.
+   */
+  declare(entry, typedef) {
+    if (entry.type != kEnvEntryType.Variable || entry.type != kEnvEntryType.Extern)
+      return false;
+
+    return this.put(entry, typedef);
   }
 
   /**

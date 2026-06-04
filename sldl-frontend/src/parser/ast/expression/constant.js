@@ -11,6 +11,15 @@ const { Expression } = require("./expression.js");
 
 /** Represents a compile-time constant literal (number, string, boolean). */
 class Constant extends Expression {
+  static maybe(P, E) {
+    return P.test(kTokenType.String)
+      || P.test(kTokenType.Number)
+      || P.test(kTokenReserved.True)
+      || P.test(kTokenReserved.False)
+      || P.test(kTokenReserved.Infinity)
+      || P.test(kTokenReserved.NaN);
+  }
+
   /**
    * @param {Token} token - The literal token.
    */
@@ -25,7 +34,7 @@ class Constant extends Expression {
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @returns {boolean}
    */
@@ -62,7 +71,7 @@ class Constant extends Expression {
    * Entry: look -> literal token.
    * Exit: look -> after literal token.
    *
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    */
   syntax(P, E) {
@@ -98,7 +107,7 @@ class Constant extends Expression {
     this.error(kBulitInExceptions.Unexpected, P.look);
   }
 
-  /** @returns {*} */
+  /** @returns {any} */
   getValue() {
     if (!this.ctx)
       return void 0;

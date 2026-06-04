@@ -4,19 +4,21 @@ const { EnvEntry } = require("../../env.js");
 const { AstNode } = require("../astNode.js");
 const { Statement } = require("./statement.js");
 const { Constant } = require("../expression/constant.js");
+const { TypeDeclaration } = require("../typedecl.js");
+const { TypeRef } = require("../../type.js");
 
 /** Represents a member variable of a class. */
 class StructMemberDecl extends AstNode {
   constructor() {
     super();
 
-    this.typeName = void 0;
+    this.typedef = void 0;
     this.id = void 0;
     this.defaultVal = void 0;
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {StructStatement} struct - Class statement.
    * @returns {boolean}
@@ -37,49 +39,45 @@ class StructMemberDecl extends AstNode {
   }
 
   /**
-   * Parse a class member declaration.
-   * 
+   * Parse a struct member declaration.
+   *
    * <StructMember>:
-   *   <Identifier> <Identifier> ;
-   *   <Identifier> <Identifier> = <Literal> ;
-   * 
+   *   <TypeDeclaration> ;
+   *   <TypeDeclaration> = <Literal> ;
+   *
    * Entry: look -> <Identifier> for type name.
    * Exit: look -> After ";"
-   * 
-   * @param {Parser} P - Parser.
+   *
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {StructStatement} struct - Class statement.
+   * @param {StructStatement} struct - Struct statement.
    */
   syntax(P, E, struct) {
-    var typeName = P.look
-      , typedef = E.get(typeName);
+    var typeDecl = TypeDeclaration.parse(P, E)(P.look);
 
-    // Member name.
-    P.move();
-    P.match(kTokenType.Identifier);
-    this.id = P.look;
+    if (!typeDecl || !typeDecl.name)
+      this.error(kBulitInExceptions.InvalidType, P.look);
+
+    this.typedef = typeDecl.typedef;
+    this.id = typeDecl.name;
     this.relocate(this.id);
-
-    // Skip member name.
-    P.move();
 
     if (P.test(kTokenReserved.Assign)) {
       // Default value.
       P.move();
       this.defaultVal = Constant.parse(P, E)(P.look);
-      P.move();
     }
 
     // ";"
     P.match(kTokenReserved.Semicolon);
     P.move();
 
-    if (!typedef)
-      this.error(kBulitInExceptions.InvalidType, typeName);
-    if (!typedef.isPrimitive())
-      this.error(kBulitInExceptions.StructInvalidMemberType, typeName);
-
-    this.typeName = typeName;
+    // Struct members must have a primitive base type.
+    var base = this.typedef;
+    while (base && base.child)
+      base = base.child;
+    if (!(base instanceof TypeRef) || !base.ref.isPrimitive())
+      this.error(kBulitInExceptions.StructInvalidMemberType, this.id);
   }
 
   /**
@@ -101,7 +99,7 @@ class StructBlock extends AstNode {
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {StructStatement} struct - Class statement.
    * @returns {boolean}
@@ -132,7 +130,7 @@ class StructBlock extends AstNode {
    * Entry: look -> at "{"
    * Exit: look -> after "}"
    *
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {StructStatement} struct - Class statement.
    */
@@ -162,16 +160,21 @@ class StructStatement extends Statement {
   constructor(token) {
     super(token);
 
-    // Ast subnodes.
+    // - Ast subnodes.
+
+    /** @type {Token} */
     this.name = void 0;
+    /** @type {Map<string,StructMemberDecl>} */
     this.members = new Map();
 
-    // Env params.
+    // - Env params.
+
+    /** @type {EnvEntry} */
     this.entry = void 0;
   }
 
   /**
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {StructStatement} struct - Class statement.
    * @returns {boolean}
@@ -198,7 +201,7 @@ class StructStatement extends Statement {
    * Entry: look -> at "struct"
    * Exit: look -> after <StructBlock>
    * 
-   * @param {Parser} P - Parser.
+   * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    */
   syntax(P, E) {
@@ -228,6 +231,10 @@ class StructStatement extends Statement {
       this.error(kBulitInExceptions.DuplicatedMember, member.id);
 
     this.members.set(name, member);
+  }
+
+  toString() {
+    return "struct " + this.name.raw();
   }
 }
 
