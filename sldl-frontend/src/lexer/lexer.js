@@ -224,6 +224,13 @@ class CompilerLexer {
           return kTokenReserved.Dec;
         else if (this.isch('='))
           return kTokenReserved.SubTo;
+        else if (/\d/.test(this.peek)) {
+          var numStr = this.readNumber();
+          // TODO: Optimize number values.
+          if (numStr.indexOf(".") >= 0)
+            return new NumericLiteral("-" + numStr, -parseFloat(numStr));
+          return new NumericLiteral("-" + numStr, -parseInt(numStr, 10));
+        }
         return kTokenReserved.Sub;
       case '+':
         if (this.readch('+'))

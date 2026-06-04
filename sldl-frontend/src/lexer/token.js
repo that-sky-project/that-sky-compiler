@@ -237,18 +237,20 @@ const kTokenReserved = Object.freeze({
   Semicolon: new TokenContent(kTokenType.Token, ";"),
 
   // Literals.
-  True: new Word("true", true),
-  False: new Word("false", false),
-  Infinity: new Word("Infinity", Infinity),
-  NaN: new Word("NaN", NaN),
+  True: new BooleanLiteral("true", true),
+  False: new BooleanLiteral("false", false),
+  Infinity: new FloatConstLiteral("Infinity", Infinity),
+  NaN: new FloatConstLiteral("NaN", NaN),
 
   // Keywords.
-  If: new Word("if"),
-  Else: new Word("else"),
   Class: new Word("class"),
-  Struct: new Word("struct"),
-  Extends: new Word("extends"),
+  Const: new Word("const"),
+  Else: new Word("else"),
   Enum: new Word("enum"),
+  Extends: new Word("extends"),
+  Extern: new Word("extern"),
+  If: new Word("if"),
+  Struct: new Word("struct"),
 
   // Types.
   Bool: new Word("bool"),
