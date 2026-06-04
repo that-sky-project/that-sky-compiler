@@ -4,6 +4,7 @@ const { AstNode } = require("./astNode.js");
 const { ClassStatement } = require("./statement/classStatement.js");
 const { StructStatement } = require("./statement/structStatement.js");
 const { VariableStatement } = require("./statement/variableStatement.js");
+const { TypeRefNode, TypeDeclaration } = require("./typedecl.js");
 
 class ToplevelNode extends AstNode {
   constructor() {
@@ -25,7 +26,7 @@ class ToplevelNode extends AstNode {
       } else if (P.test(kTokenReserved.Struct)) {
         var strukt = new StructStatement(P.look);
         strukt.parse(P, E);
-      } else if (isTypeSpecifier(P.look, E)) {
+      } else if (TypeRefNode.maybe(P, E)) {
         var typedef = E.get(P.look);
 
         if (typedef && typedef.isType() && !typedef.isPrimitive()) {
@@ -36,22 +37,17 @@ class ToplevelNode extends AstNode {
           // Primitive type - regular variable declaration.
           // <VariableDeclaration>:
           //   <TypeSpecifier> <Declarator> (, <Declarator>)* ;
-          var baseType = new TypeNameNode(P.look);
-
-          // Skip type name.
-          P.move();
-
           for (;;) {
-            var decl = new VariableDeclarator();
-            decl.parse(P, E, baseType);
-            if (decl.name) {
-              var entry = new EnvEntry(
-                kEnvEntryType.Variable,
-                decl.name.content,
-                decl
-              );
-              E.put(entry);
-            }
+            var typeDecl = TypeDeclaration.parse(P, E)(P.look);
+            if (!typeDecl || !typeDecl.name)
+              break;
+
+            var entry = new EnvEntry(
+              kEnvEntryType.Variable,
+              typeDecl.name.content,
+              typeDecl
+            );
+            E.put(entry);
 
             if (!P.test(kTokenReserved.Comma))
               break;
