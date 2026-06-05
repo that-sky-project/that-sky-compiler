@@ -6,6 +6,8 @@ dist/
 .claude/
 
 package-lock.json
+BstBaked.meshes
+Objects.level.bin
 
 *.tgz
 *.zip
@@ -15,4 +17,6 @@ package-lock.json
 *.obj
 *.dll
 *.bak
+*.log
+*.bin
 test*
