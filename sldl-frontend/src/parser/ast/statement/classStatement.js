@@ -20,21 +20,13 @@ class ClassMemberDecl extends AstNode {
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
-   * @returns {boolean}
    */
-  parse(P, E, clazz) {
-    try {
-      this.syntax(P, E, clazz);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til ";" or "}"
-      P.moveTil(kTokenReserved.Semicolon, kTokenReserved.BraceR);
-      if (P.test(kTokenReserved.Semicolon))
-        // Prepare for the next member.
-        P.move();
-      return false;
-    }
+  panic(P, E, clazz) {
+    // Panic til ";" or "}"
+    P.moveTil(kTokenReserved.Semicolon, kTokenReserved.BraceR);
+    if (P.test(kTokenReserved.Semicolon))
+      // Prepare for the next member.
+      P.move();
   }
 
   /**
@@ -94,19 +86,11 @@ class ClassBlock extends AstNode {
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
-   * @returns {boolean}
    */
-  parse(P, E, clazz) {
-    try {
-      this.syntax(P, E, clazz);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til "}"
-      P.moveTil(kTokenReserved.BraceR);
-      P.move();
-      return false;
-    }
+  panic(P, E, clazz) {
+    // Panic til "}"
+    P.moveTil(kTokenReserved.BraceR);
+    P.move();
   }
 
   /**
@@ -131,7 +115,11 @@ class ClassBlock extends AstNode {
     P.match(kTokenReserved.BraceL);
     P.move();
 
-    while (P.test(kTokenType.Identifier)) {
+    while (
+      P.test(kTokenType.Identifier)
+      && !P.test(kTokenReserved.Class)
+      && !P.test(kTokenReserved.Struct)
+    ) {
       var decl = ClassMemberDecl.parse(P, E, clazz)();
       if (decl)
         // Skip incomplete member.
@@ -171,19 +159,11 @@ class ClassStatement extends Statement {
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {ClassStatement} clazz - Class statement.
-   * @returns {boolean}
    */
-  parse(P, E, clazz) {
-    try {
-      this.syntax(P, E, clazz);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til "}"
-      P.moveTil(kTokenReserved.BraceR);
-      P.move();
-      return false;
-    }
+  panic(P, E, clazz) {
+    // Panic til "}"
+    P.moveTil(kTokenReserved.BraceR);
+    P.move();
   }
 
   /**

@@ -31,19 +31,11 @@ class ArrayInit extends AstNode {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @returns {boolean}
    */
-  parse(P, E) {
-    try {
-      this.syntax(P, E);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til "]"
-      P.moveTil(kTokenReserved.BracketR);
-      P.move();
-      return false;
-    }
+  panic(P, E) {
+    // Panic til "]"
+    P.moveTil(kTokenReserved.BracketR);
+    P.move();
   }
 
   /**
@@ -76,7 +68,7 @@ class ArrayInit extends AstNode {
     }
 
     // Non-empty list.
-    for (;;) {
+    for (; ;) {
       this.elements.push(this._parseElement(P, E));
 
       if (!P.test(kTokenReserved.Comma))
@@ -111,6 +103,12 @@ class ArrayInit extends AstNode {
    * @returns {AstNode}
    */
   _parseElement(P, E) {
+    // Address-of expression.
+    if (P.test(kTokenReserved.And)) {
+      var { AddressExpression } = require("./expression/addressExpression.js");
+      return AddressExpression.parse(P, E)(P.look);
+    }
+
     // Nested init list.
     if (P.test(kTokenReserved.BraceL)) {
       var { InitList } = require("./initList.js");
@@ -127,38 +125,20 @@ class ArrayInit extends AstNode {
     }
 
     // Numeric literal.
-    if (P.test(kTokenType.Number)) {
-      var num = new Constant(P.look);
-      num.parse(P, E);
-      return num;
-    }
+    if (P.test(kTokenType.Number))
+      return Constant.parse(P, E)(P.look);
 
     // String literal.
-    if (P.test(kTokenType.String)) {
-      var str = new Constant(P.look);
-      str.parse(P, E);
-      return str;
-    }
+    if (P.test(kTokenType.String))
+      return Constant.parse(P, E)(P.look);
 
     // Boolean literal.
-    if (P.test(kTokenReserved.True)) {
-      var t = new Constant(P.look);
-      t.parse(P, E);
-      return t;
-    }
-
-    if (P.test(kTokenReserved.False)) {
-      var f = new Constant(P.look);
-      f.parse(P, E);
-      return f;
-    }
+    if (P.test(kTokenReserved.True) || P.test(kTokenReserved.False))
+      return Constant.parse(P, E)(P.look);
 
     // Identifier reference.
-    if (P.test(kTokenType.Identifier)) {
-      var ref = new Reference(P.look);
-      P.move();
-      return ref;
-    }
+    if (P.test(kTokenType.Identifier))
+      return Reference.parse(P, E)();
 
     throw kBulitInExceptions.Unexpected.from(P.look);
   }

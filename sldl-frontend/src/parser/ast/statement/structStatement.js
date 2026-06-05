@@ -21,21 +21,13 @@ class StructMemberDecl extends AstNode {
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {StructStatement} struct - Class statement.
-   * @returns {boolean}
    */
-  parse(P, E, struct) {
-    try {
-      this.syntax(P, E, struct);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til ";" or "}"
-      P.moveTil(kTokenReserved.Semicolon, kTokenReserved.BraceR);
-      if (P.test(kTokenReserved.Semicolon))
-        // Prepare for the next member.
-        P.move();
-      return false;
-    }
+  panic(P, E, struct) {
+    // Panic til ";" or "}"
+    P.moveTil(kTokenReserved.Semicolon, kTokenReserved.BraceR);
+    if (P.test(kTokenReserved.Semicolon))
+      // Prepare for the next member.
+      P.move();
   }
 
   /**
@@ -101,20 +93,12 @@ class StructBlock extends AstNode {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {StructStatement} struct - Class statement.
-   * @returns {boolean}
+   * @param {StructStatement} struct - Struct statement.
    */
-  parse(P, E, struct) {
-    try {
-      this.syntax(P, E, struct);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til "}"
-      P.moveTil(kTokenReserved.BraceR);
-      P.move();
-      return false;
-    }
+  panic(P, E, struct) {
+    // Panic til "}"
+    P.moveTil(kTokenReserved.BraceR);
+    P.move();
   }
 
   /**
@@ -139,7 +123,11 @@ class StructBlock extends AstNode {
     P.match(kTokenReserved.BraceL);
     P.move();
 
-    while (P.test(kTokenType.Identifier)) {
+    while (
+      P.test(kTokenType.Identifier)
+      && !P.test(kTokenReserved.Class)
+      && !P.test(kTokenReserved.Struct)
+    ) {
       var decl = StructMemberDecl.parse(P, E, struct)();
       if (decl)
         // Add member to class.
@@ -177,19 +165,11 @@ class StructStatement extends Statement {
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {StructStatement} struct - Class statement.
-   * @returns {boolean}
    */
-  parse(P, E, struct) {
-    try {
-      this.syntax(P, E, struct);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til "}"
-      P.moveTil(kTokenReserved.BraceR);
-      P.move();
-      return false;
-    }
+  panic(P, E, struct) {
+    // Panic til "}"
+    P.moveTil(kTokenReserved.BraceR);
+    P.move();
   }
 
   /**

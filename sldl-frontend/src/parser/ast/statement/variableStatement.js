@@ -12,8 +12,9 @@ const { AstNode } = require("../astNode.js");
 const { Statement } = require("./statement.js");
 const { Reference } = require("../expression/reference.js");
 const { InitList } = require("../initList.js");
+const { TypeDeclaration } = require("../typedecl.js");
 
-/** Represents an object constant declaration  TypeName varName = { ... };  */
+/** Represents a variable declaration. */
 class VariableStatement extends Statement {
   /**
    * @param {Token} token - The type-name token.
@@ -21,8 +22,8 @@ class VariableStatement extends Statement {
   constructor(token) {
     super(token);
 
-    /** @type {Token} The type name. */
-    this.typeName = void 0;
+    /** @type {AstNode} The type declaration. */
+    this.typedecl = void 0;
     /** @type {Token} The variable name. */
     this.name = void 0;
     /** @type {InitList} The initializer. */
@@ -32,73 +33,52 @@ class VariableStatement extends Statement {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @returns {boolean}
    */
-  parse(P, E) {
-    try {
-      this.syntax(P, E);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til ";"
-      P.moveTil(kTokenReserved.Semicolon);
-      P.move();
-      return false;
-    }
+  panic(P, E) {
+    // Panic til ";"
+    P.moveTil(kTokenReserved.Semicolon);
+    P.move();
   }
 
   /**
    * Parse an object constant declaration.
    *
    * <VariableStatement>:
-   *   <Identifier> <Identifier> = <InitList> ;
+   *   <TypeDeclaration> ;
+   *   <TypeDeclaration> = <InitList> ;
    *
-   * The first identifier must be a struct or class type already registered
-   * in the symbol table.  Primitive types are not allowed.  An initializer
-   * is mandatory.
-   *
-   * Entry: look -> <Identifier> for type name.
+   * Entry: look -> <TypeDeclaration> for type name.
    * Exit: look -> after ";"
    *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    */
   syntax(P, E) {
-    // Type name - must be a registered struct or class.
-    var typeToken = P.look
-      , typedef = E.get(typeToken);
+    this.typedecl = TypeDeclaration.parse(P, E)();
+    this.name = this.typedecl.name;
+    this.relocate(this.name);
 
-    if (!typedef || !typedef.isType() || typedef.isPrimitive())
-      this.error(kBulitInExceptions.InvalidType, typeToken);
+    if (!P.test(kTokenReserved.Semicolon)) {
+      // "="
+      P.match(kTokenReserved.Assign);
+      P.move();
 
-    this.typeName = typeToken;
-
-    // Skip type name.
-    P.move();
-
-    // Variable name.
-    P.match(kTokenType.Identifier);
-    this.name = P.look;
-
-    // Skip name.
-    P.move();
-
-    // "="
-    P.match(kTokenReserved.Assign);
-    P.move();
-
-    // <InitList>
-    P.match(kTokenReserved.BraceL);
-    this.init = new InitList(P.look);
-    this.init.parse(P, E);
+      // <InitList> - pass type entry for member validation.
+      var typeEntry = this.typedecl.baseType
+        ? this.typedecl.baseType.def
+        : void 0;
+      this.init = InitList.parse(P, E, typeEntry)(P.look);
+    }
 
     // ";"
     P.match(kTokenReserved.Semicolon);
     P.move();
 
     // Register as a constant in the symbol table.
-    var ref = new Reference(this.name, typedef.node, this.init);
-    E.put(new EnvEntry(kEnvEntryType.Variable, this.name.content, ref));
+    if (E.get(this.name))
+      this.error(kBulitInExceptions.MultipleDefinition, this.name);
+
+    E.put(EnvEntry.createVariable(this.name, this, this.typedecl.typedef, this.init));
   }
 }
 

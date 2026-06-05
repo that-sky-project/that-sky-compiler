@@ -32,6 +32,7 @@ class AstNode {
   }
 
   /**
+   * Parse the node from CompilerParser with panic mode.
    * @param {CompilerParser} P 
    * @param {Env} E 
    * @param  {...any} args 
@@ -41,9 +42,15 @@ class AstNode {
     var self = this;
     return function (T, ...V) {
       var r = new self(T, ...V);
-      if (!r.parse(P, E, ...args))
+      try {
+        // Try to parse the node from the CompilerParser.
+        return r.syntax(P, E, ...args) || r;
+      } catch (e) {
+        P.onerror(e);
+        // Panic mode.
+        r.panic(P, E, ...args);
         return void 0;
-      return r;
+      }
     };
   }
 
@@ -53,7 +60,7 @@ class AstNode {
   constructor(token) {
     /** 
      * Complete initial token with context. Errors of the node will use this
-     * token as context.
+     * token as context by default.
      */
     this.ctx = token || void 0;
   }
@@ -77,35 +84,32 @@ class AstNode {
   }
 
   /**
-   * Parse the node from the Parser, with panic mode.
+   * Enter panic mode to expect the next safe token. The function is called when
+   * an error was thrown in this.syntax().
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {...any} args - Other arguments.
-   * @returns {boolean}
    */
-  parse(P, E, ...args) {
-    try {
-      this.syntax(P, E, ...args);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      return false;
-    }
+  panic(P, E) {
+    // Skip to next safe token.
+    P.move();
   }
 
   /**
-   * Parse the node from the Parser.
+   * Parse the node from the Parser. Return undefine is equivalant to "this".
+   * This function is called by this.constructor.parse().
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
+   * @returns {AstNode|undefined} Rarse result, can be other node than "this".
    */
   syntax(P, E) {
-    ;
+    return this;
   }
 
   /**
    * Do the semantic computation.
+   * @param {Env} E - Symbol table.
    */
-  semantic(P, E) {
+  semantic(E) {
     ;
   }
 
@@ -119,5 +123,5 @@ class AstNode {
 }
 
 module.exports = {
-  AstNode
+  AstNode,
 };

@@ -57,9 +57,8 @@ class TypeRefNode extends AstNode {
    *
    * @param {CompilerParser} P
    * @param {Env} E
-   * @returns {boolean}
    */
-  parse(P, E) {
+  syntax(P, E) {
     P.match(kTokenType.Identifier);
     this.relocate(P.look);
 
@@ -69,13 +68,8 @@ class TypeRefNode extends AstNode {
     this.def = def;
 
     P.move();
-    return true;
   }
 }
-
-// ---------------------------------------------------------------------------
-// TypeDeclarator — C-style declarator
-// ---------------------------------------------------------------------------
 
 /**
  * Parses a C-style declarator: leading pointers, a direct declarator
@@ -130,15 +124,15 @@ class TypeDeclarator extends AstNode {
    * Exit:  look -> after the last token of the declarator.
    *
    * @param {CompilerParser} P
-   * @param {Env}            E
-   * @param {Typedef}        base — the base type (TypeRef) to wrap.
+   * @param {Env} E
+   * @param {Typedef} base - the base type (TypeRef) to wrap.
    * @returns {boolean}
    */
-  parse(P, E, base) {
+  syntax(P, E, base) {
     // ---- collect leading pointers ----
-    // Pointers are innermost modifiers — they wrap the base type directly.
-    // Arrays are outermost — they wrap pointers.
-    // E.g. "*p[10]" → ArrayOf(PointerTo(base), 10).
+    // Pointers are innermost modifiers - they wrap the base type directly.
+    // Arrays are outermost - they wrap pointers.
+    // E.g. "*p[10]" -> ArrayOf(PointerTo(base), 10).
     var ptrCount = 0;
     while (P.test(kTokenReserved.Mul)) {
       ptrCount++;
@@ -151,8 +145,7 @@ class TypeDeclarator extends AstNode {
       // ---- ( <TypeDeclarator> ) <ArraySuffix>* ----
       P.move();
 
-      var inner = new TypeDeclarator(P.look);
-      inner.parse(P, E, base);
+      var inner = TypeDeclarator.parse(P, E, base)(P.look);
       this.name = inner.name;
       resultType = inner.typedef;
 
@@ -160,8 +153,8 @@ class TypeDeclarator extends AstNode {
       P.move();
 
       // Outer array suffixes go inside the inner chain (at the leaf).
-      // E.g. "(*p)[10]" → inner = PointerTo(base), outer [10] wraps
-      // the leaf (base) → PointerTo(ArrayOf(base, 10)).
+      // E.g. "(*p)[10]" -> inner = PointerTo(base), outer [10] wraps
+      // the leaf (base) -> PointerTo(ArrayOf(base, 10)).
       while (P.test(kTokenReserved.BracketL))
         resultType = this.wrapLeaf(resultType, this.parseArraySuffix(P, E));
 
@@ -185,10 +178,8 @@ class TypeDeclarator extends AstNode {
     }
 
     this.typedef = resultType;
-    return true;
+    return this;
   }
-
-  // -- internal -------------------------------------------------------------
 
   /**
    * Parse one array suffix and return an ArrayOf factory.
@@ -222,8 +213,8 @@ class TypeDeclarator extends AstNode {
    * Walks to the innermost child and replaces it with `wrapper`.
    * The wrapper's `.child` is set to the old leaf.
    *
-   * @param {Typedef} type    — the type chain.
-   * @param {Typedef} wrapper — the new node (its child will be set).
+   * @param {Typedef} type    - the type chain.
+   * @param {Typedef} wrapper - the new node (its child will be set).
    * @returns {Typedef}
    */
   wrapLeaf(type, wrapper) {
@@ -244,8 +235,8 @@ class TypeDeclarator extends AstNode {
    * Parse zero or more array suffixes.
    *
    * @param {CompilerParser} P
-   * @param {Env}            E
-   * @param {Typedef}        current — type to wrap with array dimensions.
+   * @param {Env} E
+   * @param {Typedef} current - type to wrap with array dimensions.
    * @returns {Typedef}
    */
   parseArraySuffixes(P, E, current) {
@@ -268,16 +259,9 @@ class TypeDeclarator extends AstNode {
   }
 }
 
-// ---------------------------------------------------------------------------
-// TypeDeclaration — top-level entry point
-// ---------------------------------------------------------------------------
-
 /**
  * Top-level type declaration: a type name followed by an optional C-style
  * declarator.
- *
- * <TypeDeclaration>:
- *   <Identifier> <TypeDeclarator>
  *
  * Builds a Typedef chain representing the full type and records the variable
  * / field name if one is present.
@@ -287,7 +271,7 @@ class TypeDeclaration extends AstNode {
     super();
 
     /**
-     * The full type chain: base TypeRef → ... → outermost wrapper.
+     * The full type chain: base TypeRef -> ... -> outermost wrapper.
      * @type {Typedef}
      */
     this.typedef = void 0;
@@ -314,16 +298,19 @@ class TypeDeclaration extends AstNode {
   /**
    * Parse a complete type declaration.
    *
+   * <TypeDeclaration>:
+   *   <Identifier> <TypeDeclarator>
+   * 
    * Entry: look -> Identifier for the base type name.
-   * Exit:  look -> after the declarator (or after the type name if no
-   *        declarator follows).
+   * Exit: look -> after the declarator (or after the type name if no
+   *       declarator follows).
    *
    * @param {CompilerParser} P
-   * @param {Env}            E
+   * @param {Env} E
    * @returns {boolean}
    */
-  parse(P, E) {
-    // ---- base type name ----
+  syntax(P, E) {
+    // Base type name.
     if (!TypeRefNode.maybe(P, E))
       this.error(kBulitInExceptions.Unexpected, P.look);
     this.relocate(P.look);
@@ -334,12 +321,10 @@ class TypeDeclaration extends AstNode {
 
     var base = new TypeRef(this.baseType.def);
 
-    // ---- optional declarator ----
-    if (!TypeDeclarator.maybe(P, E)) {
-      // Plain type reference — no pointers, arrays, or name.
+    // Optional declarator.
+    if (!TypeDeclarator.maybe(P, E))
+      // Plain type reference - no pointers, arrays, or name.
       this.typedef = base;
-      return true;
-    }
 
     this.decl = TypeDeclarator.parse(P, E, base)(P.look);
     if (!this.decl)
@@ -347,7 +332,6 @@ class TypeDeclaration extends AstNode {
 
     this.typedef = this.decl.typedef;
     this.name = this.decl.name;
-    return true;
   }
 
   /**

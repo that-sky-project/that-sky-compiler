@@ -1,3 +1,5 @@
+const { kInternalTypeEntries } = require("./env.js");
+
 class Typedef {
   /**
    * @param {Typedef} a
@@ -70,9 +72,32 @@ class ArrayOf extends Typedef {
   }
 }
 
+const kInternalTypedefs = Object.freeze({
+  // Integer types.
+  Bool: new TypeRef(kInternalTypeEntries.Bool),
+  Int8: new TypeRef(kInternalTypeEntries.Int8),
+  Uint8: new TypeRef(kInternalTypeEntries.Uint8),
+  Int16: new TypeRef(kInternalTypeEntries.Int16),
+  Uint16: new TypeRef(kInternalTypeEntries.Uint16),
+  Int32: new TypeRef(kInternalTypeEntries.Int32),
+  Uint32: new TypeRef(kInternalTypeEntries.Uint32),
+  Int64: new TypeRef(kInternalTypeEntries.Int64),
+  Uint64: new TypeRef(kInternalTypeEntries.Uint64),
+  // Float types.
+  Float: new TypeRef(kInternalTypeEntries.Float),
+  Double: new TypeRef(kInternalTypeEntries.Double),
+  // String types.
+  Cstring: new TypeRef(kInternalTypeEntries.Cstring),
+  TgcString: new TypeRef(kInternalTypeEntries.TgcString),
+  // Object types.
+  Object: new TypeRef(kInternalTypeEntries.Object),
+  Clump: new TypeRef(kInternalTypeEntries.Clump)
+});
+
 module.exports = {
   Typedef,
   TypeRef,
   PointerTo,
-  ArrayOf
+  ArrayOf,
+  kInternalTypedefs
 };

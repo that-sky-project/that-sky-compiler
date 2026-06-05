@@ -40,14 +40,19 @@ class EnvEntry {
    * Create an EnvEntry.
    * @param {Token} token - The token of the variable identifier.
    * @param {AstNode} node - The declaration of the variable, usually VariableStatement.
+   * @param {Typedef} type - The type of the variable.
+   * @param {AstNode} [value] - The initial value of the variable.
    * @returns {EnvEntry}
    */
-  static createVariable(token, node) {
-    return new EnvEntry(
+  static createVariable(token, node, type, value) {
+    var r = new EnvEntry(
       kEnvEntryType.Variable,
       token.content,
       node
     );
+    r.setParent(type);
+    value && r.setValue(value);
+    return r;
   }
 
   /**
@@ -183,6 +188,32 @@ class EnvEntry {
   }
 }
 
+function prim(content) {
+  return new EnvEntry(kEnvEntryType.Primitive, content);
+}
+
+const kInternalTypeEntries = Object.freeze({
+  // Integer types.
+  Bool: prim(kInternalTypes.Bool),
+  Int8: prim(kInternalTypes.Int8),
+  Uint8: prim(kInternalTypes.Uint8),
+  Int16: prim(kInternalTypes.Int16),
+  Uint16: prim(kInternalTypes.Uint16),
+  Int32: prim(kInternalTypes.Int32),
+  Uint32: prim(kInternalTypes.Uint32),
+  Int64: prim(kInternalTypes.Int64),
+  Uint64: prim(kInternalTypes.Uint64),
+  // Float types.
+  Float: prim(kInternalTypes.Float),
+  Double: prim(kInternalTypes.Double),
+  // String types.
+  Cstring: prim(kInternalTypes.Cstring),
+  TgcString: prim(kInternalTypes.TgcString),
+  // Object types.
+  Object: new EnvEntry(kEnvEntryType.Class, kInternalTypes.Object),
+  Clump: new EnvEntry(kEnvEntryType.Class, kInternalTypes.Clump)
+});
+
 class Env {
   /**
    * @param {Env} [prev] 
@@ -190,6 +221,27 @@ class Env {
   constructor(prev = void 0) {
     this.prev = prev;
     this.symbols = new Map();
+  }
+
+  /**
+   * Initialize the symbol table. Internal types has no AstNode.
+   */
+  initialize() {
+    this.put(kInternalTypeEntries.Bool);
+    this.put(kInternalTypeEntries.Int8);
+    this.put(kInternalTypeEntries.Uint8);
+    this.put(kInternalTypeEntries.Int16);
+    this.put(kInternalTypeEntries.Uint16);
+    this.put(kInternalTypeEntries.Int32);
+    this.put(kInternalTypeEntries.Uint32);
+    this.put(kInternalTypeEntries.Int64);
+    this.put(kInternalTypeEntries.Uint64);
+    this.put(kInternalTypeEntries.Float);
+    this.put(kInternalTypeEntries.Double);
+    this.put(kInternalTypeEntries.Cstring);
+    this.put(kInternalTypeEntries.TgcString);
+    this.put(kInternalTypeEntries.Object);
+    this.put(kInternalTypeEntries.Clump);
   }
 
   /**
@@ -269,10 +321,26 @@ class Env {
     }
     return void 0;
   }
+
+  /**
+   * Get an entry in current scope by a token.
+   * @param {Token|TokenContent|string} token 
+   * @returns {EnvEntry|undefined}
+   */
+  getOwn(token) {
+    var s = token instanceof Token
+      ? token.raw()
+      : token instanceof TokenContent
+        ? token.content
+        : token;
+    if (this.symbols.has(s))
+      return this.symbols.get(s);
+  }
 }
 
 module.exports = {
   Env,
   EnvEntry,
-  kEnvEntryType
+  kEnvEntryType,
+  kInternalTypeEntries
 };

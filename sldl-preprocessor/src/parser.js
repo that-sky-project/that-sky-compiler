@@ -222,13 +222,13 @@ function processDuplicate(input, nesting) {
  * Returns 0 for false, non-zero for true.
  *
  * Grammar:
- *   expression  → logical_or
- *   logical_or  → logical_and ("||" logical_and)*
- *   logical_and → equality ("&&" equality)*
- *   equality    → relational (("==" | "!=") relational)*
- *   relational  → unary (("<" | ">" | "<=" | ">=") unary)*
- *   unary       → "!" unary | primary
- *   primary     → "(" expression ")" | NUMBER | "defined" "(" NAME ")" | "defined" NAME | NAME
+ *   expression  -> logical_or
+ *   logical_or  -> logical_and ("||" logical_and)*
+ *   logical_and -> equality ("&&" equality)*
+ *   equality    -> relational (("==" | "!=") relational)*
+ *   relational  -> unary (("<" | ">" | "<=" | ">=") unary)*
+ *   unary       -> "!" unary | primary
+ *   primary     -> "(" expression ")" | NUMBER | "defined" "(" NAME ")" | "defined" NAME | NAME
  *
  * @param {PreprocessLexer} lexer - Lexer positioned after `#if`.
  * @param {Map<string, any>} macros - Defined macros.

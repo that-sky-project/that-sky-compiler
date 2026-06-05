@@ -2,7 +2,8 @@
  * Initializer list AST node for named / designated aggregate initializers.
  *
  * Supports C-style designated (.x = 1) and JSON-style named (x: 1) members.
- * Ordered (positional) initialization uses ArrayInit ([ ... ]) instead.
+ * Members are stored by name in a Map to prevent duplicates, consistent with
+ * ClassStatement and StructStatement.
  *
  * Copyright (c) 2026 That Sky Project
  * LGPL-3.0-or-later
@@ -13,6 +14,11 @@ const { kTokenReserved, kTokenType } = require("../../lexer/token.js");
 const { AstNode } = require("./astNode.js");
 const { Constant } = require("./expression/constant.js");
 const { Reference } = require("./expression/reference.js");
+const { AddressExpression } = require("./expression/addressExpression.js");
+
+// ---------------------------------------------------------------------------
+// InitMember
+// ---------------------------------------------------------------------------
 
 /** Represents a single named member inside an InitList. */
 class InitMember extends AstNode {
@@ -20,7 +26,7 @@ class InitMember extends AstNode {
     super();
 
     /**
-     * Property name.
+     * Property name token.
      * @type {Token}
      */
     this.name = void 0;
@@ -30,7 +36,19 @@ class InitMember extends AstNode {
      */
     this.value = void 0;
   }
+
+  /**
+   * Get the member name as a string.
+   * @returns {string}
+   */
+  getName() {
+    return this.name ? this.name.raw() : "";
+  }
 }
+
+// ---------------------------------------------------------------------------
+// InitList
+// ---------------------------------------------------------------------------
 
 /** Represents a brace-enclosed named initializer  { ... }. */
 class InitList extends AstNode {
@@ -41,28 +59,21 @@ class InitList extends AstNode {
     super(token);
 
     /**
-     * Array of named member nodes.
-     * @type {InitMember[]}
+     * Named members, keyed by member name string.
+     * @type {Map<string, InitMember>}
      */
-    this.members = [];
+    this.members = new Map();
   }
 
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @returns {boolean}
+   * @param {EnvEntry} [typeEntry] - Target struct/class type for validation.
    */
-  parse(P, E) {
-    try {
-      this.syntax(P, E);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Panic til "}"
-      P.moveTil(kTokenReserved.BraceR);
-      P.move();
-      return false;
-    }
+  panic(P, E, typeEntry) {
+    // Panic til "}"
+    P.moveTil(kTokenReserved.BraceR);
+    P.move();
   }
 
   /**
@@ -85,8 +96,9 @@ class InitList extends AstNode {
    *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
+   * @param {EnvEntry} [typeEntry] - Target type for member validation.
    */
-  syntax(P, E) {
+  syntax(P, E, typeEntry) {
     // "{"
     P.match(kTokenReserved.BraceL);
     this.relocate(P.look);
@@ -100,10 +112,9 @@ class InitList extends AstNode {
 
     // Non-empty list.
     while (true) {
-      this.members.push(this._parseMember(P, E));
+      this._parseMember(P, E, typeEntry);
 
       if (!P.test(kTokenReserved.Comma))
-        // Allow trailing separator before "}".
         break;
       P.move();
 
@@ -119,23 +130,20 @@ class InitList extends AstNode {
   // -- internal ------------------------------------------------------------
 
   /**
-   * Parse a single named initializer member.
+   * Parse and register a single named initializer member.
    *
    * <InitMember>:
    *   . <Identifier> = <Expression>
    *   <Identifier> : <Expression>
    *
-   * Entry: look -> first token of member ( "." or identifier ).
-   * Exit: look -> after <Expression>.
-   *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @returns {InitMember}
+   * @param {EnvEntry} [typeEntry] - Target type for validation.
    */
-  _parseMember(P, E) {
+  _parseMember(P, E, typeEntry) {
     var member = new InitMember();
 
-    // C-style (.name = value)
+    // C-style designated: .name = value
     if (P.test(kTokenReserved.Dot)) {
       // Skip "."
       P.move();
@@ -152,10 +160,11 @@ class InitList extends AstNode {
       P.move();
 
       member.value = this._parseValue(P, E);
-      return member;
+      this.addMember(member, typeEntry);
+      return;
     }
 
-    // JS-style (name : value).
+    // JSON-style named: name : value
     if (P.test(kTokenType.Identifier)) {
       member.name = P.look;
       member.relocate(member.name);
@@ -168,20 +177,20 @@ class InitList extends AstNode {
       P.move();
 
       member.value = this._parseValue(P, E);
-      return member;
+      this.addMember(member, typeEntry);
+      return;
     }
 
     throw kBulitInExceptions.Unexpected.from(P.look);
   }
 
   /**
-   * Parse a value expression inside a named initializer.
+   * Parse a value expression inside an initializer.
    *
    * <Value>:
-   *   <Number>
-   *   <String>
-   *   <Identifier>
-   *   true | false
+   *   <Constant>
+   *   <Reference>
+   *   <AddressExpression>
    *   <InitList>
    *   <ArrayInit>
    *
@@ -190,6 +199,11 @@ class InitList extends AstNode {
    * @returns {AstNode}
    */
   _parseValue(P, E) {
+    // Address-of expression.
+    if (P.test(kTokenReserved.And)) {
+      return AddressExpression.parse(P, E)(P.look);
+    }
+
     // Nested init list.
     if (P.test(kTokenReserved.BraceL)) {
       var nested = new InitList(P.look);
@@ -207,39 +221,52 @@ class InitList extends AstNode {
 
     // Numeric literal.
     if (P.test(kTokenType.Number)) {
-      var num = new Constant(P.look);
-      num.parse(P, E);
-      return num;
+      return Constant.parse(P, E)(P.look);
     }
 
     // String literal.
     if (P.test(kTokenType.String)) {
-      var str = new Constant(P.look);
-      str.parse(P, E);
-      return str;
+      return Constant.parse(P, E)(P.look);
     }
 
     // Boolean literal.
-    if (P.test(kTokenReserved.True)) {
-      var t = new Constant(P.look);
-      t.parse(P, E);
-      return t;
-    }
-
-    if (P.test(kTokenReserved.False)) {
-      var f = new Constant(P.look);
-      f.parse(P, E);
-      return f;
+    if (P.test(kTokenReserved.True) || P.test(kTokenReserved.False)) {
+      return Constant.parse(P, E)(P.look);
     }
 
     // Identifier reference.
     if (P.test(kTokenType.Identifier)) {
-      var ref = new Reference(P.look);
-      P.move();
-      return ref;
+      return Reference.parse(P, E)();
     }
 
     throw kBulitInExceptions.Unexpected.from(P.look);
+  }
+
+  // -- member management ---------------------------------------------------
+
+  /**
+   * Add a member, checking for duplicates and validating against the type
+   * definition when available.
+   *
+   * @param {InitMember} member
+   * @param {EnvEntry} [typeEntry] - Target struct/class type entry.
+   */
+  addMember(member, typeEntry) {
+    var name = member.getName();
+
+    // Prevent duplicate member names.
+    if (this.members.has(name))
+      this.error(kBulitInExceptions.DuplicatedMember, member.name);
+
+    // Type checking against the target struct / class.
+    if (typeEntry && typeEntry.node) {
+      var typeMembers = typeEntry.node.members;
+      // Type members is a Map<string, ClassMemberDecl | StructMemberDecl>.
+      if (typeMembers && !typeMembers.has(name))
+        this.error(kBulitInExceptions.InvalidType, member.name);
+    }
+
+    this.members.set(name, member);
   }
 }
 

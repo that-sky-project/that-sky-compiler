@@ -8,6 +8,7 @@
 const { kBulitInExceptions } = require("sldl-utils");
 const { kTokenReserved, kTokenType, kInternalTypes } = require("../../../lexer/token.js");
 const { Expression } = require("./expression.js");
+const { TypeRef, kInternalTypedefs } = require("../../type.js");
 
 /** Represents a compile-time constant literal (number, string, boolean). */
 class Constant extends Expression {
@@ -36,26 +37,18 @@ class Constant extends Expression {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @returns {boolean}
    */
-  parse(P, E) {
-    try {
-      this.syntax(P, E);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      // Skip to next safe token.
-      while (
-        !P.done
-        && !P.test(kTokenReserved.Comma)
-        && !P.test(kTokenReserved.Semicolon)
-        && !P.test(kTokenReserved.BraceR)
-        && !P.test(kTokenReserved.BracketR)
-        && !P.test(kTokenReserved.ParenR)
-      ) {
-        P.move();
-      }
-      return false;
+  panic(P, E) {
+    // Skip to next safe token.
+    while (
+      !P.done
+      && !P.test(kTokenReserved.Comma)
+      && !P.test(kTokenReserved.Semicolon)
+      && !P.test(kTokenReserved.BraceR)
+      && !P.test(kTokenReserved.BracketR)
+      && !P.test(kTokenReserved.ParenR)
+    ) {
+      P.move();
     }
   }
 
@@ -79,29 +72,29 @@ class Constant extends Expression {
 
     // Numeric literal.
     if (P.test(kTokenType.Number)) {
-      this.type = kInternalTypes.Int32;
+      this.retype(kInternalTypedefs.Uint32);
       P.move();
-      return;
+      return this;
     }
 
     // String literal.
     if (P.test(kTokenType.String)) {
-      this.type = kInternalTypes.Cstring;
+      this.retype(kInternalTypedefs.Cstring);
       P.move();
-      return;
+      return this;
     }
 
     // Boolean literal.
     if (P.test(kTokenReserved.True)) {
-      this.type = kInternalTypes.Bool;
+      this.retype(kInternalTypedefs.Bool);
       P.move();
-      return;
+      return this;
     }
 
     if (P.test(kTokenReserved.False)) {
-      this.type = kInternalTypes.Bool;
+      this.retype(kInternalTypedefs.Bool);
       P.move();
-      return;
+      return this;
     }
 
     this.error(kBulitInExceptions.Unexpected, P.look);

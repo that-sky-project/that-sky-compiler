@@ -10,7 +10,6 @@
 
 const { kBulitInExceptions } = require("sldl-utils");
 const { kTokenType } = require("../../../lexer/token.js");
-const { EnvEntry } = require("../../env.js");
 const { Expression } = require("./expression.js");
 
 /** Represents an identifier reference or constant symbol-table entry. */
@@ -31,20 +30,10 @@ class Reference extends Expression {
   }
 
   /**
-   * @param {CompilerParser} P - Parser.
-   * @param {Env} E - Symbol table.
-   * @returns {boolean}
+   * @param {EnvEntry} type 
    */
-  parse(P, E) {
-    try {
-      this.syntax(P, E, struct);
-      return true;
-    } catch (e) {
-      P.onerror(e);
-      P.move();
-      // Directly return whatever P.look.
-      return false;
-    }
+  setType(type) {
+    this.type = type;
   }
 
   /**
@@ -58,20 +47,14 @@ class Reference extends Expression {
    * 
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
+   * @param {EnvEntry} [type] - Variable type.
    */
-  syntax(P, E) {
+  syntax(P, E, type) {
     P.match(kTokenType.Identifier);
     this.name = P.look;
     this.relocate(this.name);
 
-    var def = E.get(this.name.raw());
-    if (!def)
-      // Reference must be declared.
-      throw kBulitInExceptions.Undeclared.from(this.name);
-    if (!def.isReference())
-      throw kBulitInExceptions.InvalidRef.from(this.name);
-
-    this.type = def.vartype;
+    this.type = type || void 0;
 
     P.move();
   }
