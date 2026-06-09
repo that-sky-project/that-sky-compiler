@@ -2,6 +2,7 @@ const { Buffer } = require("sldl-utils");
 const { MetaTypeClass } = require("./type/metaTypeClass.js");
 const { MetaTypeBool, MetaTypeNumber } = require("./type/metaTypeNumber.js");
 const { MetaTypePointer } = require("./type/metaTypePointer.js");
+const { MetaTypeString } = require("./type/metaTypeString.js");
 
 const kMetaTypes = {
   // Boolean.
