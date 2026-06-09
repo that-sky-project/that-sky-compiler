@@ -372,6 +372,8 @@ export const kMetaTypes: {
   readonly Uint64: MetaTypeNumber;
   readonly Float: MetaTypeNumber;
   readonly Double: MetaTypeNumber;
+  readonly CString: MetaTypeString;
+  readonly TgcString: MetaTypeString;
   readonly Pointer: MetaTypePointer;
   readonly Object: MetaTypeClass;
 };

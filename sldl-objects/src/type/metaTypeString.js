@@ -37,12 +37,6 @@ class MetaTypeString extends MetaType {
   }
 }
 
-const kTypeString = Object.freeze({
-  CString: new MetaTypeString("cstring"),
-  TgcString: new MetaTypeString("TgcString"),
-});
-
 module.exports = {
-  MetaTypeString,
-  kTypeString
+  MetaTypeString
 };

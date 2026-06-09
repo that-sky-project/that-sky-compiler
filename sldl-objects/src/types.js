@@ -21,6 +21,10 @@ const kMetaTypes = {
   Float: new MetaTypeNumber("float", 4, Buffer.prototype.readFloatLE, Buffer.prototype.writeFloatLE),
   Double: new MetaTypeNumber("double", 8, Buffer.prototype.readDoubleLE, Buffer.prototype.writeDoubleLE),
 
+  // String.
+  CString: new MetaTypeString("cstring"),
+  TgcString: new MetaTypeString("TgcString"),
+
   // Pointer.
   Pointer: new MetaTypePointer("pointer"),
 
