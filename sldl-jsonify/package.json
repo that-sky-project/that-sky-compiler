@@ -1,8 +1,16 @@
 {
   "name": "sldl-jsonify",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "A Sky:CotL level editor with json.",
   "main": "main.js",
+  "files": [
+    "src",
+    "main.js",
+    "main.d.ts",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
