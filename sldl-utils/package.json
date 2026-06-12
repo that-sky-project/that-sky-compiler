@@ -1,12 +1,13 @@
 {
   "name": "sldl-utils",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "main": "main.js",
   "files": [
     "src",
     "main.js",
     "main.d.ts",
-    "package.json"
+    "package.json",
+    "LICENSE"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
