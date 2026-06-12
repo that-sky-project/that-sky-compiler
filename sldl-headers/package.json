@@ -8,10 +8,11 @@
     "main.js",
     "main.d.ts",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "devDependencies": {
-    "sldl-jsonify": "^1.0.0-beta.1"
+    "sldl-jsonify": "^1.0.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
