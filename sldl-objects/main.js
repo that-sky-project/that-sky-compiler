@@ -1,5 +1,5 @@
 /**
- * sldl-objects — JSON-based TGCL .level.bin reader/writer.
+ * sldl-objects - OO TGCL .level.bin binary reader/writer.
  *
  * Copyright (c) 2026 That Sky Project
  * LGPL-3.0-or-later
@@ -15,7 +15,7 @@ var {
   LevelObjects,
   kMemvarTypes
 } = require("./src/levelObjects.js");
-var { kMetaTypes } = require("./src/types.js");
+var { kMetaTypes, getClumpGeneric, clumpGenericCache } = require("./src/types.js");
 var { MetaType, MetaTypeForward, kMetaValueType } = require("./src/type/metaType.js");
 var {
   MetaTypeClassMember,
@@ -34,7 +34,6 @@ var { LevelValuePointer } = require("./src/value/levelValuePointer.js");
 var { LevelValueString } = require("./src/value/levelValueString.js");
 var { LevelValueStruct } = require("./src/value/levelValueStruct.js");
 var { LevelValueRaw } = require("./src/value/levelValueRaw.js");
-var { DeclarationGroup } = require("./src/declGroup.js");
 
 module.exports = {
   // ./src/exceptions.js
@@ -51,8 +50,8 @@ module.exports = {
 
   // ./src/types.js
   kMetaTypes,
-
-  // ./src/type/metaType.js
+  getClumpGeneric,
+  clumpGenericCache,
   MetaType,
   MetaTypeForward,
   kMetaValueType,
@@ -100,7 +99,4 @@ module.exports = {
 
   // ./src/value/levelValueRaw.js
   LevelValueRaw,
-
-  // ./src/declGroup.js
-  DeclarationGroup,
 };

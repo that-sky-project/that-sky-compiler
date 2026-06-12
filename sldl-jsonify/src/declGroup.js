@@ -1,17 +1,15 @@
-var { kMetaTypes, getClumpGeneric, clumpGenericCache } = require("./types.js");
-var { MetaType, MetaTypeForward, kMetaValueType } = require("./type/metaType.js");
-var { MetaTypeClass, MetaTypeClassMember, MetaTypeClassMemberArray } = require("./type/metaTypeClass.js");
-var { MetaTypeStruct } = require("./type/metaTypeStruct.js");
-var { MetaTypeRaw } = require("./type/metaTypeRaw.js");
-var { MetaTypePointer } = require("./type/metaTypePointer.js");
-var { kObjectExceptions } = require("./exceptions.js");
+var { kMetaTypes, getClumpGeneric, clumpGenericCache } = require("sldl-objects");
+var { MetaType, MetaTypeForward, kMetaValueType, MetaTypeClass,
+  MetaTypeClassMember, MetaTypeClassMemberArray, MetaTypeStruct,
+  MetaTypeRaw, MetaTypePointer } = require("sldl-objects");
+var { kItaniumException } = require("./exception.js");
 
 /**
  * Parses a JSON declaration group into MetaType instances.
  */
 class DeclarationGroup {
   /**
-   * @param {Object} declGroup — parsed JSON object with A$/E$/S$/C$ keys.
+   * @param {Object} declGroup - parsed JSON object with A$/E$/S$/C$ keys.
    */
   constructor(declGroup) {
     /** @type {Map<string, MetaType>} */
@@ -81,7 +79,7 @@ class DeclarationGroup {
     for (var name of Object.keys(aliases)) {
       var targetName = aliases[name];
       if (typeof targetName !== "string")
-        throw kObjectExceptions.InvalidAliasTarget.from(name, String(targetName));
+        throw kItaniumException.InvalidAliasTarget.from(name, String(targetName));
       // Will be resolved in the resolve phase.
       // Store for later resolution.
       this.aliasMap = this.aliasMap || {};
@@ -92,25 +90,25 @@ class DeclarationGroup {
     for (var name of Object.keys(enums)) {
       var enumDef = enums[name];
       if (!enumDef || typeof enumDef !== "object")
-        throw kObjectExceptions.InvalidEnumBaseType.from(name, String(enumDef));
+        throw kItaniumException.InvalidEnumBaseType.from(name, String(enumDef));
 
       var baseTypeName = enumDef.$as;
       if (typeof baseTypeName !== "string")
-        throw kObjectExceptions.InvalidEnumBaseType.from(name, String(baseTypeName));
+        throw kItaniumException.InvalidEnumBaseType.from(name, String(baseTypeName));
 
       // Underlying type must be a signed integer.
       var signedInts = ["int8_t", "int16_t", "int32_t", "int64_t"];
       if (signedInts.indexOf(baseTypeName) === -1)
-        throw kObjectExceptions.InvalidEnumBaseType.from(name, baseTypeName);
+        throw kItaniumException.InvalidEnumBaseType.from(name, baseTypeName);
 
       for (var constKey of Object.keys(enumDef)) {
         if (constKey.startsWith("$"))
           continue;
         var constVal = enumDef[constKey];
         if (this.enumInfo.has(constKey))
-          throw kObjectExceptions.DuplicateEnumConstant.from(constKey);
+          throw kItaniumException.DuplicateEnumConstant.from(constKey);
 
-        // Parse value — allow number or numeric string.
+        // Parse value - allow number or numeric string.
         var parsed;
         if (typeof constVal === "number")
           parsed = constVal;
@@ -140,7 +138,7 @@ class DeclarationGroup {
       var align = structRaw.$align;
       if (align !== void 0) {
         if (typeof align !== "number" || align <= 0 || (align & (align - 1)))
-          throw kObjectExceptions.InvalidValueFormat.from(align, "$align for struct " + name);
+          throw kItaniumException.InvalidValueFormat.from(align, "$align for struct " + name);
       }
 
       for (var memberKey of Object.keys(structRaw)) {
@@ -149,7 +147,7 @@ class DeclarationGroup {
 
         var memberTypeExpr = structRaw[memberKey];
         if (typeof memberTypeExpr !== "string")
-          throw kObjectExceptions.InvalidMemberSyntax.from(String(memberTypeExpr));
+          throw kItaniumException.InvalidMemberSyntax.from(String(memberTypeExpr));
 
         var result = this.parseStructMemberType(memberTypeExpr, name, memberKey);
         structDef.addMember(result.type, memberKey, result.count);
@@ -169,11 +167,11 @@ class DeclarationGroup {
       // Resolve $parent.
       var parentName = classRaw.$parent;
       if (parentName === null || parentName === void 0) {
-        // Use Object as default parent — already set.
+        // Use Object as default parent - already set.
       } else if (typeof parentName === "string") {
         var parentDef = this.resolveType(parentName);
         if (!parentDef || !(parentDef instanceof MetaTypeClass))
-          throw kObjectExceptions.UnresolvedTypeName.from(parentName);
+          throw kItaniumException.UnresolvedTypeName.from(parentName);
         classDef.parent = parentDef;
       }
 
@@ -187,7 +185,7 @@ class DeclarationGroup {
 
         var memberTypeExpr = classRaw[memberKey];
         if (typeof memberTypeExpr !== "string")
-          throw kObjectExceptions.InvalidMemberSyntax.from(String(memberTypeExpr));
+          throw kItaniumException.InvalidMemberSyntax.from(String(memberTypeExpr));
 
         var memberResult = this.parseClassMemberType(memberTypeExpr, name, memberKey);
         classDef.addMember(memberResult.type, memberKey, memberResult.count);
@@ -200,11 +198,11 @@ class DeclarationGroup {
         var targetName = this.aliasMap[name];
         var target = this.resolveType(targetName);
         if (!target)
-          throw kObjectExceptions.UnresolvedTypeName.from(targetName);
+          throw kItaniumException.UnresolvedTypeName.from(targetName);
 
         var vt = target.valueType();
         if (vt !== kMetaValueType.Number && vt !== kMetaValueType.Struct)
-          throw kObjectExceptions.InvalidAliasTarget.from(name, targetName);
+          throw kItaniumException.InvalidAliasTarget.from(name, targetName);
 
         this.types.set(name, new MetaTypeForward(target, name));
       }
@@ -219,7 +217,7 @@ class DeclarationGroup {
       var typeParam = key.slice(6, -1); // remove "Clump<" and ">"
       var resolvedT = this.resolveType(typeParam);
       if (!resolvedT || !(resolvedT instanceof MetaTypeClass))
-        throw kObjectExceptions.UnresolvedTypeName.from(typeParam);
+        throw kItaniumException.UnresolvedTypeName.from(typeParam);
 
       clumpClass.addMember(new MetaTypePointer("pointer"), "data", 0);
       this.classes.set(key, clumpClass);
@@ -268,7 +266,7 @@ class DeclarationGroup {
     if (this.classes.has(name))
       return;
 
-    // Parent will be resolved later — use Object as placeholder.
+    // Parent will be resolved later - use Object as placeholder.
     var c = new MetaTypeClass(name, kMetaTypes.Object);
     this.types.set(name, c);
     this.classes.set(name, c);
@@ -278,7 +276,7 @@ class DeclarationGroup {
     var visited = new Set();
     for (var p = classDef.parent; p; p = p.parent) {
       if (p.getName() === name)
-        throw kObjectExceptions.CircularInheritance.from(name);
+        throw kItaniumException.CircularInheritance.from(name);
       if (visited.has(p.getName()))
         break; // Already checked.
       visited.add(p.getName());
@@ -287,7 +285,7 @@ class DeclarationGroup {
 
   checkDuplicate(allNames, name) {
     if (allNames.has(name))
-      throw kObjectExceptions.DuplicateTypeName.from(name);
+      throw kItaniumException.DuplicateTypeName.from(name);
     allNames.add(name);
   }
 
@@ -304,20 +302,20 @@ class DeclarationGroup {
       var count = parseInt(arrayMatch[2], 10) || 1;
       var baseType = this.resolveType(typeName);
       if (!baseType)
-        throw kObjectExceptions.UnresolvedTypeName.from(typeName);
+        throw kItaniumException.UnresolvedTypeName.from(typeName);
       if (baseType.valueType() !== kMetaValueType.Number
         && baseType.valueType() !== kMetaValueType.Struct)
-        throw kObjectExceptions.InvalidMemberSyntax.from(expr);
+        throw kItaniumException.InvalidMemberSyntax.from(expr);
       return { type: baseType, count: count };
     }
 
     // Plain type name.
     var baseType = this.resolveType(expr.trim());
     if (!baseType)
-      throw kObjectExceptions.UnresolvedTypeName.from(expr);
+      throw kItaniumException.UnresolvedTypeName.from(expr);
     if (baseType.valueType() !== kMetaValueType.Number
       && baseType.valueType() !== kMetaValueType.Struct)
-      throw kObjectExceptions.InvalidMemberSyntax.from(expr);
+      throw kItaniumException.InvalidMemberSyntax.from(expr);
     return { type: baseType, count: void 0 };
   }
 
@@ -329,7 +327,7 @@ class DeclarationGroup {
   parseClassMemberType(expr, className, memberName) {
     expr = expr.trim();
 
-    // R$<size> — raw binary.
+    // R$<size> - raw binary.
     var rawMatch = expr.match(/^R\$(\d+)$/);
     if (rawMatch) {
       var size = parseInt(rawMatch[1], 10);
@@ -372,12 +370,12 @@ class DeclarationGroup {
     }
 
     if (!resolvedType)
-      throw kObjectExceptions.UnresolvedTypeName.from(typeName);
+      throw kItaniumException.UnresolvedTypeName.from(typeName);
 
     if (hasPointer) {
       // Reference types.
       if (!(resolvedType instanceof MetaTypeClass))
-        throw kObjectExceptions.InvalidMemberSyntax.from(expr);
+        throw kItaniumException.InvalidMemberSyntax.from(expr);
 
       if (hasBracket) {
         // Ref array.
@@ -396,7 +394,7 @@ class DeclarationGroup {
           count: void 0
         };
       }
-      throw kObjectExceptions.InvalidMemberSyntax.from(expr);
+      throw kItaniumException.InvalidMemberSyntax.from(expr);
     }
 
     // Inline struct, number, or string.

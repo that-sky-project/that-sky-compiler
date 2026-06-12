@@ -1,7 +1,7 @@
 var { SimpleExceptionBuilder, DynamicExceptionBuilder } = require("sldl-utils");
 
 var kObjectExceptions = Object.freeze({
-  // From bak — binary read errors.
+  // From bak - binary read errors.
   MemvarOutOfBound: new SimpleExceptionBuilder("memvar access out of bounds"),
   ReadObjectFailed: new SimpleExceptionBuilder("read object failed"),
   InvalidClassName: new DynamicExceptionBuilder(function (name) {
@@ -26,7 +26,7 @@ var kObjectExceptions = Object.freeze({
     return "unrecognized object name \"" + name + "\"";
   }),
 
-  // New — declaration group parsing.
+  // New - declaration group parsing.
   DuplicateTypeName: new DynamicExceptionBuilder(function (name) {
     return "duplicate type name \"" + name + "\"";
   }),
@@ -53,7 +53,7 @@ var kObjectExceptions = Object.freeze({
     return "enum \"" + name + "\" has invalid base type \"" + type + "\"";
   }),
 
-  // New — value parsing.
+  // New - value parsing.
   UnresolvedEnumConstant: new DynamicExceptionBuilder(function (name) {
     return "unresolved enum constant \"" + name + "\"";
   }),
@@ -64,7 +64,7 @@ var kObjectExceptions = Object.freeze({
     return "invalid value \"" + val + "\" for type \"" + type + "\"";
   }),
 
-  // New — write errors.
+  // New - write errors.
   UndeclaredSymbol: new DynamicExceptionBuilder(function (name) {
     return "symbol \"" + name + "\" is not declared in the declaration group";
   }),

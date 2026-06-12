@@ -29,7 +29,7 @@ var kMetaTypes = {
   // Pointer.
   Pointer: new MetaTypePointer("pointer"),
 
-  // Object — base of all classes.
+  // Object - base of all classes.
   Object: new MetaTypeClass("Object", null),
 };
 
@@ -58,7 +58,7 @@ function getClumpGeneric(typeName) {
 
   var clump = new MetaTypeClass(key, kMetaTypes.Clump);
   clumpGenericCache.set(key, clump);
-  // Member resolution is deferred — the target type must be resolved later
+  // Member resolution is deferred - the target type must be resolved later
   // via declGroup when all types are known.
   return clump;
 }

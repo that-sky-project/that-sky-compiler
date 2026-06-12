@@ -14,7 +14,7 @@ class MetaTypeClassMemberArray extends MetaTypeClassMember {
   /**
    * @param {MetaType} def
    * @param {string} name
-   * @param {number} [count] — 0 = dynamic, >0 = fixed max count.
+   * @param {number} [count] - 0 = dynamic, >0 = fixed max count.
    */
   constructor(def, name, count) {
     super(def, name);
@@ -138,7 +138,7 @@ class MetaTypeClass extends MetaType {
 
   /**
    * Get all members across the inheritance chain.
-   * @param {Set<string>} [usedMembers] — if provided, only return members
+   * @param {Set<string>} [usedMembers] - if provided, only return members
    *   whose names are in this set (member pruning).
    * @returns {Array<[string, MetaTypeClassMember]>}
    */
@@ -179,13 +179,13 @@ class MetaTypeClass extends MetaType {
         , v;
 
       if (m) {
-        // Known member — read with its type.
+        // Known member - read with its type.
         v = m.read(L, B, cursor,
           m.def instanceof MetaTypeClass
             ? L.classes[L.getClassIdx(m.def.getName())]
             : void 0);
       } else {
-        // Unknown member — read as raw. The caller has already added a
+        // Unknown member - read as raw. The caller has already added a
         // raw-type member to the definition if needed.
         var rawMemvar = raw ? raw.raw.get(memberName) : void 0;
         if (rawMemvar) {
@@ -194,7 +194,7 @@ class MetaTypeClass extends MetaType {
           } else if (rawMemvar.type === 2 /* ref */) {
             v = require("../types.js").kMetaTypes.Pointer.read(L, B, cursor);
           } else {
-            // raw or array — read raw bytes.
+            // raw or array - read raw bytes.
             var size = rawMemvar.size || 4;
             var MetaTypeRaw = require("./metaTypeRaw.js").MetaTypeRaw;
             v = new MetaTypeRaw("raw", size).read(L, B, cursor);
@@ -231,7 +231,7 @@ class MetaTypeClass extends MetaType {
    * @param {Buffer} B
    * @param {LevelValueClass} val
    * @param {number} off
-   * @param {Set<string>} [usedMembers] — only write members in this set.
+   * @param {Set<string>} [usedMembers] - only write members in this set.
    * @returns {number} Number of bytes written, or 0 on failure.
    */
   write(L, B, val, off, usedMembers) {
@@ -249,6 +249,17 @@ class MetaTypeClass extends MetaType {
       }
 
       var n = m.write(L, B, v, cursor);
+      if (!n) {
+        // Fallback: write value as raw bytes if the member def mismatch.
+        if (Buffer.isBuffer(v.getValue ? v.getValue() : void 0)) {
+          var buf = v.getValue();
+          var len = Math.min(buf.length, m.getSize());
+          buf.copy(B, cursor, 0, len);
+          n = m.getSize();
+        } else if (v && v.def && v.def.write && v.def !== m.def) {
+          n = v.def.write(L, B, v, cursor);
+        }
+      }
       if (!n)
         return 0;
       cursor += n;
@@ -307,7 +318,7 @@ class MetaTypeClass extends MetaType {
       return st;
     }
 
-    // Fallback — return zero-valued number.
+    // Fallback - return zero-valued number.
     var fallback = new (require("../value/levelValueNumber.js").LevelValueNumber)(def);
     fallback.setValue(0);
     return fallback;

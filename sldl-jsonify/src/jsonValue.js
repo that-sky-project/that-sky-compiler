@@ -1,40 +1,32 @@
 var { Buffer } = require("buffer");
-var { LevelValueString } = require("./value/levelValueString.js");
-var { LevelValueNumber, LevelValueBool } = require("./value/levelValueNumber.js");
-var { LevelValuePointer } = require("./value/levelValuePointer.js");
-var { LevelValueRaw } = require("./value/levelValueRaw.js");
-var { LevelValueStruct } = require("./value/levelValueStruct.js");
-var { LevelValueClass } = require("./value/levelValueClass.js");
-var { kMetaValueType } = require("./type/metaType.js");
-var { MetaTypeClassMemberArray } = require("./type/metaTypeClass.js");
-var { kObjectExceptions } = require("./exceptions.js");
+var { LevelValueString, LevelValueNumber, LevelValueBool, LevelValuePointer,
+  LevelValueRaw, LevelValueStruct, LevelValueClass } = require("sldl-objects");
+var { kMetaValueType, MetaTypeClassMember, MetaTypeClassMemberArray } = require("sldl-objects");
+var { kItaniumException } = require("./exception.js");
 
 /**
  * Convert a JSON value to a LevelValue based on the member definition.
- * @param {any} jsonValue — the JSON value (number, string, boolean, object, array, null)
- * @param {MetaTypeClassMember} member — the member definition
- * @param {DeclarationGroup} declGroup — for resolving K$ / P$ refs
+ * @param {any} jsonValue
+ * @param {MetaTypeClassMember} member
+ * @param {import("./declGroup.js").DeclarationGroup} declGroup
  * @returns {LevelValue|LevelValue[]}
  */
 function parse(jsonValue, member, declGroup) {
-  // Handle arrays.
+  // Arrays.
   if (member instanceof MetaTypeClassMemberArray) {
-    if (!Array.isArray(jsonValue)) {
-      // Single value coerced to single-element array.
+    if (!Array.isArray(jsonValue))
       jsonValue = jsonValue === void 0 || jsonValue === null ? [] : [jsonValue];
-    }
 
     var elemDef = member.def;
     var result = [];
     for (var i = 0; i < jsonValue.length; i++) {
       result.push(parse(jsonValue[i],
-        new (require("./type/metaTypeClass.js").MetaTypeClassMember)(elemDef, member.name),
-        declGroup));
+        new MetaTypeClassMember(elemDef, member.name), declGroup));
     }
     return result;
   }
 
-  // Handle pointers (P$ references).
+  // Pointers (P$ references).
   if (member.valueType() === kMetaValueType.Pointer) {
     var ptr = new LevelValuePointer();
 
@@ -43,19 +35,19 @@ function parse(jsonValue, member, declGroup) {
       ptr.targetName = null;
     } else if (typeof jsonValue === "string" && jsonValue.startsWith("P$")) {
       ptr.targetName = jsonValue.slice(2);
-      ptr.setIndex(0xFFFFFFFF); // Placeholder, resolved during write.
+      ptr.setIndex(0xFFFFFFFF);
     } else if (typeof jsonValue === "number") {
       ptr.setIndex(jsonValue >>> 0);
       ptr.targetName = null;
     } else {
-      throw kObjectExceptions.InvalidValueFormat.from(String(jsonValue),
+      throw kItaniumException.InvalidValueFormat.from(String(jsonValue),
         member.def.getName());
     }
 
     return ptr;
   }
 
-  // Handle strings.
+  // Strings.
   if (member.valueType() === kMetaValueType.String) {
     var s = new LevelValueString(member.def);
     s.setValue(typeof jsonValue === "string" ? jsonValue
@@ -64,17 +56,15 @@ function parse(jsonValue, member, declGroup) {
     return s;
   }
 
-  // Handle raw.
-  if (member.valueType() === kMetaValueType.Raw) {
+  // Raw (B$ prefix only).
+  if (member.valueType() === kMetaValueType.Raw)
     return parseRaw(jsonValue, member.def);
-  }
 
-  // Handle numbers.
-  if (member.valueType() === kMetaValueType.Number) {
+  // Numbers.
+  if (member.valueType() === kMetaValueType.Number)
     return parseNumber(jsonValue, member.def, declGroup);
-  }
 
-  // Handle structs.
+  // Structs.
   if (member.valueType() === kMetaValueType.Struct) {
     var st = new LevelValueStruct(member.def);
     if (jsonValue && typeof jsonValue === "object" && !Array.isArray(jsonValue)) {
@@ -86,17 +76,16 @@ function parse(jsonValue, member, declGroup) {
     return st;
   }
 
-  // Handle class (inline class).
-  if (member.valueType() === kMetaValueType.Class) {
+  // Inline class.
+  if (member.valueType() === kMetaValueType.Class)
     return parseClass(jsonValue, member.def, declGroup);
-  }
 
-  throw kObjectExceptions.InvalidValueFormat.from(String(jsonValue),
+  throw kItaniumException.InvalidValueFormat.from(String(jsonValue),
     member.def.getName());
 }
 
 /**
- * Parse a number value from JSON with B$/K$ prefix support.
+ * Parse a number value with B$/K$ prefix support.
  */
 function parseNumber(jsonValue, def, declGroup) {
   var size = def.getSize();
@@ -114,20 +103,18 @@ function parseNumber(jsonValue, def, declGroup) {
   } else if (typeof jsonValue === "string") {
     var s = jsonValue.trim();
 
-    // B$ prefix — hex binary, big-endian value representation.
+    // B$ prefix - hex binary, big-endian value representation.
     if (s.startsWith("B$")) {
       var hex = s.slice(2);
       var buf = Buffer.from(hex, "hex");
       buf = rightAlign(buf, size);
-      // Read as big-endian, since hex represents the numeric value
-      // with most-significant bytes first.
       num = readIntFromBufferBE(buf, size);
     }
-    // K$ prefix — enum constant.
+    // K$ prefix - enum constant.
     else if (s.startsWith("K$")) {
       var constName = s.slice(2);
       if (!declGroup.enumConstants.has(constName))
-        throw kObjectExceptions.UnresolvedEnumConstant.from(constName);
+        throw kItaniumException.UnresolvedEnumConstant.from(constName);
       num = declGroup.enumConstants.get(constName);
     }
     // Plain numeric string.
@@ -149,7 +136,7 @@ function parseNumber(jsonValue, def, declGroup) {
 }
 
 /**
- * Parse a raw value from JSON with suffix support.
+ * Parse a raw value - only B$ prefix and plain hex are supported.
  */
 function parseRaw(jsonValue, def) {
   var targetSize = def.getSize();
@@ -175,46 +162,9 @@ function parseRaw(jsonValue, def) {
     return r;
   }
 
-  // Suffix-based parsing.
-  var numericStr;
-  var buf;
-
-  if (s.endsWith("ul")) {
-    numericStr = s.slice(0, -2).trim();
-    var u64 = BigInt(numericStr);
-    buf = Buffer.alloc(8);
-    buf.writeBigUInt64LE(u64);
-  } else if (s.endsWith("l")) {
-    numericStr = s.slice(0, -1).trim();
-    var i64 = BigInt(numericStr);
-    buf = Buffer.alloc(8);
-    buf.writeBigInt64LE(i64);
-  } else if (s.endsWith("u")) {
-    numericStr = s.slice(0, -1).trim();
-    var u32 = parseInt(numericStr, 10) >>> 0;
-    buf = Buffer.alloc(4);
-    buf.writeUInt32LE(u32);
-  } else if (s.endsWith("i")) {
-    numericStr = s.slice(0, -1).trim();
-    var i32 = parseInt(numericStr, 10) | 0;
-    buf = Buffer.alloc(4);
-    buf.writeInt32LE(i32);
-  } else if (s.endsWith("f")) {
-    numericStr = s.slice(0, -1).trim();
-    var f = parseFloat(numericStr);
-    buf = Buffer.alloc(4);
-    buf.writeFloatLE(f);
-  } else if (s.endsWith("d")) {
-    numericStr = s.slice(0, -1).trim();
-    var d = parseFloat(numericStr);
-    buf = Buffer.alloc(8);
-    buf.writeDoubleLE(d);
-  } else {
-    // Treat as hex string.
-    buf = Buffer.from(s, "hex");
-  }
-
-  r.setValue(rightAlign(buf, targetSize));
+  // Plain hex string.
+  var buf2 = Buffer.from(s, "hex");
+  r.setValue(rightAlign(buf2, targetSize));
   return r;
 }
 
@@ -249,13 +199,9 @@ function rightAlign(buf, targetSize) {
     var padding = Buffer.alloc(targetSize - buf.length);
     return Buffer.concat([padding, buf]);
   }
-  // Truncate from the left.
   return buf.subarray(buf.length - targetSize);
 }
 
-/**
- * Read an integer from a buffer based on its size.
- */
 function readIntFromBuffer(buf, size) {
   switch (size) {
     case 1: return buf.readUInt8(0);
@@ -276,10 +222,61 @@ function readIntFromBufferBE(buf, size) {
   }
 }
 
+/**
+ * Convert a LevelValue to a plain JSON value.
+ */
+function serialize(val, declGroup) {
+  if (Array.isArray(val)) {
+    var arr = [];
+    for (var i = 0; i < val.length; i++)
+      arr.push(serialize(val[i], declGroup));
+    return arr;
+  }
+
+  var vt = val.valueType();
+
+  if (vt === kMetaValueType.Pointer) {
+    var target = val.getValue();
+    if (target === null || target === void 0)
+      return null;
+    if (target && typeof target.getName === "function")
+      return "P$" + target.getName();
+    return "P$" + String(target);
+  }
+
+  if (vt === kMetaValueType.Raw) {
+    var buf = val.getValue();
+    return "B$" + buf.toString("hex");
+  }
+
+  if (vt === kMetaValueType.Struct) {
+    var structResult = {};
+    for (var [mk, mv] of val.value)
+      structResult[mk] = serialize(mv, declGroup);
+    return structResult;
+  }
+
+  if (vt === kMetaValueType.Class)
+    return serializeClass(val, declGroup);
+
+  return val.getValue();
+}
+
+function serializeClass(lvc, declGroup) {
+  var result = { $type: lvc.getDef().getName() };
+  for (var [key, val] of lvc.value)
+    result[key] = serialize(val, declGroup);
+  return result;
+}
+
 module.exports = {
   parse,
   parseRaw,
   parseNumber,
   parseClass,
+  serialize,
+  serializeClass,
   rightAlign,
+  readIntFromBuffer,
+  readIntFromBufferBE,
 };
