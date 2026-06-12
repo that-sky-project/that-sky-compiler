@@ -11,8 +11,16 @@ npm i sldl-objects
 ## Quick Start
 
 ```js
-var { LevelObjects, MetaTypeClass, kMetaTypes, LevelValueClass,
-  LevelValueBool, LevelValueNumber, LevelValueString, LevelValuePointer } = require("sldl-objects");
+var {
+  LevelObjects,
+  MetaTypeClass,
+  kMetaTypes,
+  LevelValueClass,
+  LevelValueBool,
+  LevelValueNumber,
+  LevelValueString,
+  LevelValuePointer
+} = require("sldl-objects");
 var fs = require("fs");
 
 // 1. Define your types.

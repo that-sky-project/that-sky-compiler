@@ -1,13 +1,14 @@
 {
   "name": "sldl-objects",
-  "version": "2.0.0",
+  "version": "1.2.0",
   "main": "main.js",
   "files": [
     "src",
     "main.js",
     "main.d.ts",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

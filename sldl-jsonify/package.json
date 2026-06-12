@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/that-sky-project/that-sky-compiler#readme",
   "dependencies": {
-    "sldl-objects": "^2.0.0",
+    "sldl-objects": "^1.2.0",
     "sldl-utils": "^1.1.0"
   }
 }
