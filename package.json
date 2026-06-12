@@ -9,6 +9,7 @@
     "sldl-objects",
     "sldl-headers",
     "sldl-jsonify",
+    "examples",
     "that-sky-compiler"
   ]
 }
