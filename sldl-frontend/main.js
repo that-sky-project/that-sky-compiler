@@ -1,49 +1,33 @@
 /**
- * SLDL Compiler Frontend
+ * SLDL Compiler (sldl-cc)
  * for SLDL v1.0.0
- * 
+ *
+ * Compiles SLDL source text into an Env symbol table compatible with
+ * sldl-frontend format.
+ *
  * Copyright (c) 2026 That Sky Project
  * LGPL-3.0-or-later
  */
 
-const { CompilerLexer } = require("./src/lexer/lexer.js");
 const { CompilerParser } = require("./src/parser/parser.js");
+const { ToplevelNode } = require("./src/parser/ast/toplevel.js");
 
 /**
- * Tokenize a preprocessed FileSlice into a stream of Token objects.
+ * Compile SLDL source text into an Env symbol table.
  *
- * @param {FileSlice|string} input - Preprocessed input.
- * @returns {{tokens: Token[], lexer: CompilerLexer}}
+ * @param {FileSlice|string} input - SLDL source (preprocessed).
+ * @returns {{env: Env, errors: Error[], parser: CompilerParser}}
  */
-function tokenize(input) {
-  var lexer = new CompilerLexer(input)
-    , tokens = []
-    , t;
-
-  while ((t = lexer.scan()) != null)
-    tokens.push(t);
-
+function compile(input) {
+  var parser = new CompilerParser(input);
+  ToplevelNode.parse(parser, parser.env)();
   return {
-    tokens,
-    lexer
+    env: parser.env,
+    errors: parser.errors,
+    parser: parser
   };
 }
 
-/**
- * Parse a token array into an AST.
- *
- * @param {FileSlice|string} input - Preprocessed input.
- * @returns {{parser: CompilerParser}} Program AST.
- */
-function parse(input) {
-  var parser = new CompilerParser(tokens);
-  return {
-    parser
-  }
-}
-
 module.exports = {
-  // Helper functions.
-  tokenize,
-  parse,
+  compile
 };

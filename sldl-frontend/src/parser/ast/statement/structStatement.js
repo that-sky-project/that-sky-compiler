@@ -1,13 +1,13 @@
 const { kBulitInExceptions } = require("../../../exceptions.js");
 const { kTokenReserved, kTokenType } = require("../../../lexer/token.js");
-const { EnvEntry } = require("../../env.js");
+const { EnvEntry, kEnvEntryType } = require("../../env.js");
 const { AstNode } = require("../astNode.js");
 const { Statement } = require("./statement.js");
 const { Constant } = require("../expression/constant.js");
 const { TypeDeclaration } = require("../typedecl.js");
 const { TypeRef } = require("../../type.js");
 
-/** Represents a member variable of a class. */
+/** Represents a member variable of a struct. */
 class StructMemberDecl extends AstNode {
   constructor() {
     super();
@@ -20,7 +20,7 @@ class StructMemberDecl extends AstNode {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {StructStatement} struct - Class statement.
+   * @param {StructStatement} struct - Struct statement.
    */
   panic(P, E, struct) {
     // Panic til ";" or "}"
@@ -64,11 +64,14 @@ class StructMemberDecl extends AstNode {
     P.match(kTokenReserved.Semicolon);
     P.move();
 
-    // Struct members must have a primitive base type.
+    // Struct members must have a primitive or struct base type.
+    // Classes and pointers are not allowed in struct members.
     var base = this.typedef;
     while (base && base.child)
       base = base.child;
-    if (!(base instanceof TypeRef) || !base.ref.isPrimitive())
+    if (!(base instanceof TypeRef))
+      this.error(kBulitInExceptions.StructInvalidMemberType, this.id);
+    else if (base.ref.type === kEnvEntryType.Class)
       this.error(kBulitInExceptions.StructInvalidMemberType, this.id);
   }
 
@@ -81,7 +84,7 @@ class StructMemberDecl extends AstNode {
   }
 }
 
-/** Represents the member declaration block of a class. */
+/** Represents the member declaration block of a struct. */
 class StructBlock extends AstNode {
   /**
    * @param {Token} token - Token "{"
@@ -102,21 +105,21 @@ class StructBlock extends AstNode {
   }
 
   /**
-   * Parse a class block.
-   * 
+   * Parse a struct block.
+   *
    * <StructBlock>:
    *   { <StructMembers> }
-   * 
+   *
    * <StructMembers>:
    *   <StructMember> <StructMembers>
    *   <StructMember>
-   * 
+   *
    * Entry: look -> at "{"
    * Exit: look -> after "}"
    *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {StructStatement} struct - Class statement.
+   * @param {StructStatement} struct - Struct statement.
    */
   syntax(P, E, struct) {
     // "{"
@@ -127,10 +130,11 @@ class StructBlock extends AstNode {
       P.test(kTokenType.Identifier)
       && !P.test(kTokenReserved.Class)
       && !P.test(kTokenReserved.Struct)
+      && !P.test(kTokenReserved.Enum)
     ) {
       var decl = StructMemberDecl.parse(P, E, struct)();
       if (decl)
-        // Add member to class.
+        // Add member to struct.
         struct.addMember(decl);
     }
 
@@ -140,10 +144,10 @@ class StructBlock extends AstNode {
   }
 }
 
-/** Represents a class. */
+/** Represents a struct. */
 class StructStatement extends Statement {
   /**
-   * @param {Token} token - The token "class".
+   * @param {Token} token - The token "struct".
    */
   constructor(token) {
     super(token);
@@ -164,23 +168,25 @@ class StructStatement extends Statement {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {StructStatement} struct - Class statement.
    */
-  panic(P, E, struct) {
-    // Panic til "}"
-    P.moveTil(kTokenReserved.BraceR);
-    P.move();
+  panic(P, E) {
+    // Panic til "}" or ";"
+    P.moveTil(kTokenReserved.BraceR, kTokenReserved.Semicolon);
+    if (P.test(kTokenReserved.BraceR))
+      P.move();
+    else if (P.test(kTokenReserved.Semicolon))
+      P.move();
   }
 
   /**
    * Parse a struct declaration.
-   * 
+   *
    * <StructStatement>:
-   *   struct <Identifier> <StructBlock>
-   * 
+   *   struct <Identifier> <StructBlock> [;]
+   *
    * Entry: look -> at "struct"
    * Exit: look -> after <StructBlock>
-   * 
+   *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    */
@@ -191,14 +197,22 @@ class StructStatement extends Statement {
     P.move();
     P.match(kTokenType.Identifier);
 
-    // Record class name.
+    // Record struct name.
     this.name = P.look;
+    if (E.get(this.name))
+      throw kBulitInExceptions.MultipleDefinition.from(this.name);
 
-    // Skip class name.
+    // Skip struct name.
     P.move();
 
     StructBlock.parse(P, E, this)(P.look);
+
+    // Optional ";"
+    if (P.test(kTokenReserved.Semicolon))
+      P.move();
+
     var entry = EnvEntry.createStruct(this.name, this);
+    this.entry = entry;
     E.put(entry);
   }
 
@@ -208,7 +222,7 @@ class StructStatement extends Statement {
   addMember(member) {
     var name = member.getName();
     if (this.members.has(name))
-      this.error(kBulitInExceptions.DuplicatedMember, member.id);
+      throw kBulitInExceptions.DuplicatedMember.from(member.id);
 
     this.members.set(name, member);
   }

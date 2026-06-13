@@ -1,10 +1,3 @@
-/**
- * Constant literal AST node.
- *
- * Copyright (c) 2026 That Sky Project
- * LGPL-3.0-or-later
- */
-
 const { kBulitInExceptions } = require("../../../exceptions.js");
 const { kTokenReserved, kTokenType, kInternalTypes } = require("../../../lexer/token.js");
 const { Expression } = require("./expression.js");
@@ -70,9 +63,13 @@ class Constant extends Expression {
   syntax(P, E) {
     this.relocate(P.look);
 
-    // Numeric literal.
+    // Numeric literal - check if integer or float.
     if (P.test(kTokenType.Number)) {
-      this.retype(kInternalTypedefs.Uint32);
+      var numVal = P.look.content;
+      if (numVal.isInteger && numVal.isInteger())
+        this.retype(kInternalTypedefs.Int32);
+      else
+        this.retype(kInternalTypedefs.Double);
       P.move();
       return this;
     }
@@ -118,6 +115,15 @@ class Constant extends Expression {
       return false;
 
     return void 0;
+  }
+
+  /**
+   * True if this constant represents an integer value.
+   * @returns {boolean}
+   */
+  isInteger() {
+    var v = this.getValue();
+    return typeof v === "number" && Number.isInteger(v);
   }
 
   toString() {

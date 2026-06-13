@@ -1,14 +1,3 @@
-/**
- * Initializer list AST node for named / designated aggregate initializers.
- *
- * Supports C-style designated (.x = 1) and JSON-style named (x: 1) members.
- * Members are stored by name in a Map to prevent duplicates, consistent with
- * ClassStatement and StructStatement.
- *
- * Copyright (c) 2026 That Sky Project
- * LGPL-3.0-or-later
- */
-
 const { kBulitInExceptions } = require("../../exceptions.js");
 const { kTokenReserved, kTokenType } = require("../../lexer/token.js");
 const { AstNode } = require("./astNode.js");
@@ -206,6 +195,7 @@ class InitList extends AstNode {
 
     // Nested init list.
     if (P.test(kTokenReserved.BraceL)) {
+      var { InitList } = require("./initList.js");
       var nested = new InitList(P.look);
       nested.syntax(P, E);
       return nested;
@@ -259,10 +249,11 @@ class InitList extends AstNode {
       this.error(kBulitInExceptions.DuplicatedMember, member.name);
 
     // Type checking against the target struct / class.
+    // Skip validation for forward declarations (empty members map)
+    // since we can't know what members the type will have.
     if (typeEntry && typeEntry.node) {
       var typeMembers = typeEntry.node.members;
-      // Type members is a Map<string, ClassMemberDecl | StructMemberDecl>.
-      if (typeMembers && !typeMembers.has(name))
+      if (typeMembers && typeMembers.size > 0 && !typeMembers.has(name))
         this.error(kBulitInExceptions.InvalidType, member.name);
     }
 

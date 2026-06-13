@@ -6,9 +6,9 @@ const {
 
 class CompileException extends SldlException {
   /**
-   * @param {string} msg 
-   * @param {SimpleExceptionBuilder|DynamicExceptionBuilder} type 
-   * @param {Token} token 
+   * @param {string} msg
+   * @param {SimpleExceptionBuilder|DynamicExceptionBuilder} type
+   * @param {Token} token
    */
   constructor(msg, type, token) {
     super(msg, type);
@@ -18,7 +18,7 @@ class CompileException extends SldlException {
 
 class SimpleCompileExceptionBuilder extends SimpleExceptionBuilder {
   /**
-   * @param {string} msg 
+   * @param {string} msg
    */
   constructor(msg) {
     super(msg);
@@ -35,15 +35,15 @@ class SimpleCompileExceptionBuilder extends SimpleExceptionBuilder {
 
 class DynamicCompileExceptionBuilder extends DynamicExceptionBuilder {
   /**
-   * @param {(token:Token,...args)=>string} builder 
+   * @param {(token:Token,...args)=>string} builder
    */
   constructor(builder) {
     super(builder);
   }
 
   /**
-   * @param {Token} token 
-   * @param  {...any} args 
+   * @param {Token} token
+   * @param  {...any} args
    * @returns {CompileException}
    */
   from(token, ...args) {

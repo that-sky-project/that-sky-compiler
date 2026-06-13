@@ -3,7 +3,6 @@ const { kTokenReserved } = require("../../../lexer/token.js");
 const { Expression } = require("./expression.js");
 const { PrimaryExpression } = require("./primaryExpression.js");
 const { PointerTo } = require("../../type.js");
-const { Reference } = require("./reference.js");
 
 /**
  * Address-of expression - takes the address of an object.
@@ -51,13 +50,20 @@ class AddressExpression extends Expression {
       P.move();
 
       this.child = PrimaryExpression.parse(P, E)(P.look);
-      if (!(this.child instanceof Reference))
-        this.error(kBulitInExceptions.InvalidRef, this.child.ctx);
 
-      // Result type is pointer to operand type.
-      if (this.child.type)
-        // Clone the type chain from the operand.
-        this.retype(new PointerTo(this.child.type, this));
+      // Result type is pointer to operand type. If operand is a Reference,
+      // get its type entry and build a PointerTo chain.
+      if (this.child.type) {
+        // If the child is a Reference with an EnvEntry type, create a TypeRef
+        // then wrap with PointerTo.
+        if (this.child.type.ident && this.child.type.isReference()) {
+          var { TypeRef } = require("../../type.js");
+          var base = new TypeRef(this.child.type.vartype);
+          this.retype(new PointerTo(base, this));
+        } else {
+          this.retype(new PointerTo(this.child.type, this));
+        }
+      }
 
       return this;
     }

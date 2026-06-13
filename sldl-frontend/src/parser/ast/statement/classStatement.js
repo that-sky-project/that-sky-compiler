@@ -1,6 +1,6 @@
 const { kBulitInExceptions } = require("../../../exceptions.js");
 const { kTokenReserved, kTokenType, kInternalTypes } = require("../../../lexer/token.js");
-const { EnvEntry } = require("../../env.js");
+const { EnvEntry, kEnvEntryType } = require("../../env.js");
 const { AstNode } = require("../astNode.js");
 const { Statement } = require("./statement.js");
 const { Constant } = require("../expression/constant.js");
@@ -95,14 +95,14 @@ class ClassBlock extends AstNode {
 
   /**
    * Parse a class block.
-   * 
+   *
    * <ClassBlock>:
    *   { <ClassMembers> }
-   * 
+   *
    * <ClassMembers>:
    *   <ClassMember> <ClassMembers>
    *   <ClassMember>
-   * 
+   *
    * Entry: look -> at "{"
    * Exit: look -> after "}"
    *
@@ -119,6 +119,7 @@ class ClassBlock extends AstNode {
       P.test(kTokenType.Identifier)
       && !P.test(kTokenReserved.Class)
       && !P.test(kTokenReserved.Struct)
+      && !P.test(kTokenReserved.Enum)
     ) {
       var decl = ClassMemberDecl.parse(P, E, clazz)();
       if (decl)
@@ -158,28 +159,32 @@ class ClassStatement extends Statement {
   /**
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
-   * @param {ClassStatement} clazz - Class statement.
    */
-  panic(P, E, clazz) {
-    // Panic til "}"
-    P.moveTil(kTokenReserved.BraceR);
-    P.move();
+  panic(P, E) {
+    // Panic til "}" or ";"
+    P.moveTil(kTokenReserved.BraceR, kTokenReserved.Semicolon);
+    if (P.test(kTokenReserved.BraceR))
+      P.move();
+    else if (P.test(kTokenReserved.Semicolon))
+      P.move();
   }
 
   /**
    * Parse a class declaration.
-   * 
+   *
    * <ClassStatement>:
-   *   class <Identifier> <ClassBlock>
-   *   class <Identifier> extends <Identifier> <ClassBlock>
-   * 
+   *   class <Identifier> ;
+   *   class <Identifier> <ClassBlock> [;]
+   *   class <Identifier> extends <Identifier> <ClassBlock> [;]
+   *
    * Entry: at "class"
-   * Exit: after <ClassBlock>
-   * 
+   * Exit: after <ClassBlock> (or after ";")
+   *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
+   * @param {boolean} [isForwardDecl] - True if preceded by "declare".
    */
-  syntax(P, E) {
+  syntax(P, E, isForwardDecl) {
     // Skip "class".
     var start = P.look;
 
@@ -188,13 +193,35 @@ class ClassStatement extends Statement {
 
     // Record class name.
     this.name = P.look;
-    if (E.get(this.name))
-      throw kBulitInExceptions.MultipleDefinition.from(this.name);
+    var existing = E.get(this.name);
 
     // Skip class name.
     P.move();
 
-    // Process extends.
+    // ---- Forward declaration: class Name; ----
+    var isFwd = P.test(kTokenReserved.Semicolon)
+      || (isForwardDecl && !P.test(kTokenReserved.Extends) && !P.test(kTokenReserved.BraceL));
+
+    if (isFwd) {
+      if (existing && existing.type === kEnvEntryType.Class) {
+        // Already declared as forward decl or full class — reuse.
+        this.entry = existing;
+        if (P.test(kTokenReserved.Semicolon))
+          P.move();
+        return;
+      }
+      if (existing)
+        throw kBulitInExceptions.MultipleDefinition.from(this.name);
+      // Forward declaration — register stub with no body.
+      var fwdEntry = EnvEntry.createClass(this.name, this);
+      this.entry = fwdEntry;
+      E.put(fwdEntry, kInternalTypes.Object.name);
+      if (P.test(kTokenReserved.Semicolon))
+        P.move();
+      return;
+    }
+
+    // ---- Process extends ----
     var parentName = kInternalTypes.Object;
     if (P.content == kTokenReserved.Extends) {
       P.move();
@@ -211,6 +238,15 @@ class ClassStatement extends Statement {
     if (!parent.isExtendable())
       throw kBulitInExceptions.ClassInvalidParentType.from(parentName);
 
+    // ---- Handle re-definition of forward-declared class ----
+    if (existing) {
+      if (existing.type !== kEnvEntryType.Class)
+        throw kBulitInExceptions.MultipleDefinition.from(this.name);
+      // Update the EnvEntry to reference the full definition node.
+      existing.node = this;
+      this.entry = existing;
+    }
+
     // Merge the member variables from the parent.
     if (parent.node && parent.node.members)
       for (var kv of parent.node.members)
@@ -222,10 +258,16 @@ class ClassStatement extends Statement {
     // Parse members.
     ClassBlock.parse(P, E, this)(P.look);
 
-    // Register into the symbol table.
-    var entry = EnvEntry.createClass(this.name, this);
-    this.entry = entry;
-    E.inherit(entry, parent.ident);
+    // Optional ";"
+    if (P.test(kTokenReserved.Semicolon))
+      P.move();
+
+    // Register into the symbol table if not already registered (forward decl).
+    if (!existing) {
+      var entry = EnvEntry.createClass(this.name, this);
+      this.entry = entry;
+      E.inherit(entry, parent.ident);
+    }
   }
 
   /**
@@ -237,6 +279,14 @@ class ClassStatement extends Statement {
       throw kBulitInExceptions.DuplicatedMember.from(member.id);
 
     this.members.set(name, member);
+  }
+
+  /**
+   * True if this is a forward declaration (no body).
+   * @returns {boolean}
+   */
+  isFowardDecl() {
+    return this.members.size === 0 && !this.parent;
   }
 
   toString() {

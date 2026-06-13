@@ -6,7 +6,7 @@ const { Constant } = require("./constant.js");
 
 /**
  * Primary expression - the atom of the expression grammar.
- * 
+ *
  * The <PrimaryExpression> node is usually hidden.
  *
  * <PrimaryExpression>:

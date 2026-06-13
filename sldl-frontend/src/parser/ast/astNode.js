@@ -2,7 +2,7 @@ const { kBulitInExceptions } = require("../../exceptions.js");
 
 /**
  * Node of abstract syntax tree.
- * 
+ *
  * Each AstNode can contain two types of other nodes: reference nodes and child
  * nodes. Reference nodes represent things like the original type declaration and
  * are used only for identification; child nodes are nodes directly derived from
@@ -11,8 +11,8 @@ const { kBulitInExceptions } = require("../../exceptions.js");
 class AstNode {
   /**
    * Check if P.look is the starting token of the current node.
-   * @param {CompilerParser} P 
-   * @param {Env} E 
+   * @param {CompilerParser} P
+   * @param {Env} E
    * @returns {boolean}
    */
   static maybe(P, E) {
@@ -22,8 +22,8 @@ class AstNode {
   /**
    * Check if P.look is the starting token of the current node. This function is
    * used to throw an "unexpected ..." error before the caller enters parsing.
-   * @param {CompilerParser} P 
-   * @param {v} E 
+   * @param {CompilerParser} P
+   * @param {v} E
    * @throws {CompileException}
    */
   static match(P, E) {
@@ -33,9 +33,9 @@ class AstNode {
 
   /**
    * Parse the node from CompilerParser with panic mode.
-   * @param {CompilerParser} P 
-   * @param {Env} E 
-   * @param  {...any} args 
+   * @param {CompilerParser} P
+   * @param {Env} E
+   * @param  {...any} args
    * @returns {(T:Token,...V:any[])=>AstNode|undefined}
    */
   static parse(P, E, ...args) {
@@ -55,10 +55,10 @@ class AstNode {
   }
 
   /**
-   * @param {Token} [token] 
+   * @param {Token} [token]
    */
   constructor(token) {
-    /** 
+    /**
      * Complete initial token with context. Errors of the node will use this
      * token as context by default.
      */
@@ -77,7 +77,7 @@ class AstNode {
 
   /**
    * Relocate the node to a new context.
-   * @param {Token} token 
+   * @param {Token} token
    */
   relocate(token) {
     this.ctx = token;

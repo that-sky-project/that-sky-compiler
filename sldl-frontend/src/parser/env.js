@@ -37,7 +37,24 @@ class EnvEntry {
   }
 
   /**
-   * Create an EnvEntry.
+   * Create a Typedef alias entry (for enum types).
+   * @param {Token} token - The token of the type name.
+   * @param {AstNode} node - The declaration node.
+   * @param {EnvEntry} target - The target type entry.
+   * @returns {EnvEntry}
+   */
+  static createTypedef(token, node, target) {
+    var r = new EnvEntry(
+      kEnvEntryType.Typedef,
+      token.content,
+      node
+    );
+    r.setParent(target);
+    return r;
+  }
+
+  /**
+   * Create an EnvEntry for a variable or constant.
    * @param {Token} token - The token of the variable identifier.
    * @param {AstNode} node - The declaration of the variable, usually VariableStatement.
    * @param {Typedef} type - The type of the variable.
@@ -52,6 +69,25 @@ class EnvEntry {
     );
     r.setParent(type);
     value && r.setValue(value);
+    return r;
+  }
+
+  /**
+   * Create a constant entry (for enum members).
+   * @param {Token} token - The token of the constant name.
+   * @param {AstNode} node - The declaration node.
+   * @param {EnvEntry} type - The typedef entry (e.g., the enum type).
+   * @param {AstNode} value - The constant value AST node.
+   * @returns {EnvEntry}
+   */
+  static createConstant(token, node, type, value) {
+    var r = new EnvEntry(
+      kEnvEntryType.Constant,
+      token.content,
+      node
+    );
+    r.setParent(type);
+    r.setValue(value);
     return r;
   }
 
@@ -73,13 +109,13 @@ class EnvEntry {
     /**
      * When this.type == kEnvEntryType.Typedef: the parent field represents the
      * original type of the alias.
-     * 
+     *
      * When this.type == kEnvEntryType.Class, it represents the parent class
      * inherited from.
-     * 
+     *
      * When this.type == kEnvEntryType.Variable or kEnvEntryType.Extern, it
      * represents the type of the variable.
-     * 
+     *
      * @type {EnvEntry|undefined}
      */
     this.parent = void 0;
@@ -121,7 +157,7 @@ class EnvEntry {
   }
 
   /**
-   * @param {EnvEntry} parent 
+   * @param {EnvEntry} parent
    * @returns {this}
    */
   setParent(parent) {
@@ -130,7 +166,7 @@ class EnvEntry {
   }
 
   /**
-   * @param {AstNode} value 
+   * @param {AstNode} value
    * @returns {this}
    */
   setValue(value) {
@@ -220,7 +256,7 @@ const kInternalTypeEntries = Object.freeze({
 
 class Env {
   /**
-   * @param {Env} [prev] 
+   * @param {Env} [prev]
    */
   constructor(prev = void 0) {
     this.prev = prev;
@@ -250,8 +286,8 @@ class Env {
 
   /**
    * Put a token and the related definition into the symbol table.
-   * @param {EnvEntry} entry 
-   * @param {Token|TokenContent|string} [related] 
+   * @param {EnvEntry} entry
+   * @param {Token|TokenContent|string} [related]
    * @returns {boolean}
    */
   put(entry, related) {
@@ -272,8 +308,8 @@ class Env {
 
   /**
    * Declare inherit from the entry specified by "parent".
-   * @param {EnvEntry} entry 
-   * @param {Token|TokenContent|string} [parent] 
+   * @param {EnvEntry} entry
+   * @param {Token|TokenContent|string} [parent]
    * @returns {boolean}
    */
   inherit(entry, parent) {
@@ -285,8 +321,8 @@ class Env {
 
   /**
    * Declare an alias from the entry specified by "token".
-   * @param {EnvEntry} entry 
-   * @param {Token|TokenContent|string} [target] 
+   * @param {EnvEntry} entry
+   * @param {Token|TokenContent|string} [target]
    * @returns {boolean}
    */
   alias(entry, target) {
@@ -298,11 +334,11 @@ class Env {
 
   /**
    * Declare a variable or constant.
-   * @param {EnvEntry} entry 
+   * @param {EnvEntry} entry
    * @param {Token|TokenContent|string} typedef - Type of the variable or constant.
    */
   declare(entry, typedef) {
-    if (entry.type != kEnvEntryType.Variable || entry.type != kEnvEntryType.Extern)
+    if (entry.type != kEnvEntryType.Variable && entry.type != kEnvEntryType.Extern)
       return false;
 
     return this.put(entry, typedef);
@@ -310,7 +346,7 @@ class Env {
 
   /**
    * Get an identifier by a token.
-   * @param {Token|TokenContent|string} token 
+   * @param {Token|TokenContent|string} token
    * @returns {EnvEntry|undefined}
    */
   get(token) {
@@ -328,7 +364,7 @@ class Env {
 
   /**
    * Get an entry in current scope by a token.
-   * @param {Token|TokenContent|string} token 
+   * @param {Token|TokenContent|string} token
    * @returns {EnvEntry|undefined}
    */
   getOwn(token) {

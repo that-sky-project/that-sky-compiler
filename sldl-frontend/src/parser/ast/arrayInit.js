@@ -1,12 +1,3 @@
-/**
- * Array initializer AST node for ordered / positional initializers.
- *
- * Parses [ ... ] syntax for array and ordered initialization.
- *
- * Copyright (c) 2026 That Sky Project
- * LGPL-3.0-or-later
- */
-
 const { kBulitInExceptions } = require("../../exceptions.js");
 const { kTokenReserved, kTokenType } = require("../../lexer/token.js");
 const { AstNode } = require("./astNode.js");

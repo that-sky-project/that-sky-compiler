@@ -6,10 +6,10 @@
  */
 
 const { FileSlice } = require("sldl-utils");
-const { kBulitInExceptions } = require("../exceptions.js");
 const { CompilerLexer } = require("../lexer/lexer.js");
 const { TokenContent, kTokenType, kTokenReserved, Token, kInternalTypes } = require("../lexer/token.js");
 const { Env, EnvEntry, kEnvEntryType } = require("./env.js");
+const { kBulitInExceptions } = require("../exceptions.js");
 
 class CompilerParser {
   /**
@@ -46,7 +46,7 @@ class CompilerParser {
   /**
    * Move until the given token. Used in panic mode.
    * After the function, loop points to the given token or end of the file.
-   * @param {...number|string|TokenContent} cond 
+   * @param {...number|string|TokenContent} cond
    */
   moveTil(...cond) {
     while (!this.done && !cond.some(this.test.bind(this)))
@@ -55,7 +55,7 @@ class CompilerParser {
 
   /**
    * Check the token.
-   * @param {number|string|TokenContent} cond 
+   * @param {number|string|TokenContent} cond
    * @returns {boolean}
    */
   test(cond) {
@@ -84,7 +84,7 @@ class CompilerParser {
 
   onerror(e) {
     if (this.errors.length >= 1024)
-      throw kBulitInExceptions.TooManyError.from();
+      throw new Error("too many errors");
     this.errors.push(e);
   }
 }

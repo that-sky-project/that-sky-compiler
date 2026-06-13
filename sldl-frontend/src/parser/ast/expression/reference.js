@@ -1,13 +1,3 @@
-/**
- * Reference AST node.
- * 
- * Represents an identifier reference or a named constant entry in the symbol
- * table.
- *
- * Copyright (c) 2026 That Sky Project
- * LGPL-3.0-or-later
- */
-
 const { kBulitInExceptions } = require("../../../exceptions.js");
 const { kTokenType } = require("../../../lexer/token.js");
 const { Expression } = require("./expression.js");
@@ -30,7 +20,7 @@ class Reference extends Expression {
   }
 
   /**
-   * @param {EnvEntry} type 
+   * @param {EnvEntry} type
    */
   setType(type) {
     this.type = type;
@@ -38,13 +28,13 @@ class Reference extends Expression {
 
   /**
    * Parse a variable reference.
-   * 
+   *
    * <Reference>:
    *   <Identifier>
-   * 
+   *
    * Entry: look -> <Identifier>.
    * Exit: look -> After <Identifier>.
-   * 
+   *
    * @param {CompilerParser} P - Parser.
    * @param {Env} E - Symbol table.
    * @param {EnvEntry} [type] - Variable type.
@@ -54,7 +44,15 @@ class Reference extends Expression {
     this.name = P.look;
     this.relocate(this.name);
 
-    this.type = type || void 0;
+    // Resolve the reference from Env if no explicit type provided.
+    if (!type) {
+      var entry = E.get(this.name);
+      if (!entry)
+        this.error(kBulitInExceptions.Undeclared, this.name);
+      this.type = entry;
+    } else {
+      this.type = type;
+    }
 
     P.move();
   }

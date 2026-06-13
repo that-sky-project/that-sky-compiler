@@ -29,8 +29,20 @@ class Typedef {
   }
 
   /**
-   * @param {Typedef} child 
-   * @param {AstNode} node 
+   * Walks to the leaf node of a type chain.
+   * @param {Typedef} type
+   * @returns {Typedef}
+   */
+  static leaf(type) {
+    var p = type;
+    while (p.child)
+      p = p.child;
+    return p;
+  }
+
+  /**
+   * @param {Typedef} child
+   * @param {AstNode} node
    */
   constructor(child, node) {
     this.child = child || void 0;
@@ -38,12 +50,9 @@ class Typedef {
   }
 }
 
-/**
- * Represents a reference to a declared type (class, struct, enum, primitive, ...).
- */
 class TypeRef extends Typedef {
   /**
-   * @param {EnvEntry} child 
+   * @param {EnvEntry} entry
    */
   constructor(entry) {
     super();
@@ -52,42 +61,21 @@ class TypeRef extends Typedef {
   }
 }
 
-/**
- * Represents a derived type from Clump (Clump<T>).
- */
-class TypeDerive extends Typedef {
+class PointerTo extends Typedef {
   /**
-   * @param {Typedef} child 
+   * @param {Typedef} child
    * @param {AstNode} node
    */
   constructor(child, node) {
     super(child, node);
-
-    this.derived = kInternalTypeEntries.Clump;
   }
 }
 
-/**
- * Represents a pointer type to child.
- */
-class PointerTo extends Typedef {
-  /**
-   * @param {Typedef} child 
-   * @param {AstNode} node 
-   */
-  constructor(child, node) {
-    super(child, node);
-  }
-}
-
-/**
- * Represents an array of child.
- */
 class ArrayOf extends Typedef {
   /**
-   * @param {Typedef} child 
-   * @param {number} count 
-   * @param {AstNode} node 
+   * @param {Typedef} child
+   * @param {number} count
+   * @param {AstNode} node
    */
   constructor(child, count, node) {
     super(child, node);
@@ -121,8 +109,7 @@ const kInternalTypedefs = Object.freeze({
 module.exports = {
   Typedef,
   TypeRef,
-  TypeDerive,
   PointerTo,
   ArrayOf,
-  kInternalTypedefs,
+  kInternalTypedefs
 };

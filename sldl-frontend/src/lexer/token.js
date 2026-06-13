@@ -133,8 +133,8 @@ class Type extends Word {
 
 class Token {
   /**
-   * @param {Token} a 
-   * @param {Token} b 
+   * @param {Token} a
+   * @param {Token} b
    * @returns {boolean}
    */
   static isSameLine(a, b) {
@@ -142,8 +142,8 @@ class Token {
   }
 
   /**
-   * @param {Token} a 
-   * @param {Token} b 
+   * @param {Token} a
+   * @param {Token} b
    * @returns {boolean}
    */
   static equal(a, b) {
@@ -156,14 +156,14 @@ class Token {
   }
 
   /**
-   * @param {TokenContent} tokenContent 
-   * @param {number} begin 
-   * @param {number} end 
-   * @param {FileSlice} fileSlice 
-   * @param {number} line 
-   * @param {number} column 
-   * @param {boolean} first 
-   * @param {boolean} spaced 
+   * @param {TokenContent} tokenContent
+   * @param {number} begin
+   * @param {number} end
+   * @param {FileSlice} fileSlice
+   * @param {number} line
+   * @param {number} column
+   * @param {boolean} first
+   * @param {boolean} spaced
    */
   constructor(tokenContent, begin, end, fileSlice, line, column, first, spaced) {
     this.content = tokenContent;
@@ -245,6 +245,7 @@ const kTokenReserved = Object.freeze({
   // Keywords.
   Class: new Word("class"),
   Const: new Word("const"),
+  Declare: new Word("declare"),
   Else: new Word("else"),
   Enum: new Word("enum"),
   Extends: new Word("extends"),
